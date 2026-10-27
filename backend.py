@@ -346,6 +346,57 @@ def cal_add(arg):
         state.update("calAdd", {"seq": _cal_seq, "ok": False, "msg": str(ex)})
 
 
+CLAUDE_SETTINGS = os.path.join(os.environ.get("CLAUDE_CONFIG_DIR", os.path.expanduser("~/.claude")),
+                               "settings.json")
+
+
+def claude_hooks_installed():
+    try:
+        with open(CLAUDE_SETTINGS) as f:
+            return "/agent_hook.py" in json.dumps(json.load(f).get("hooks", {}))
+    except Exception:
+        return False
+
+
+def publish_settings():
+    state.update("settings", {
+        **{k: bool(cfg.get(k, config.DEFAULTS.get(k, True))) for k in config.SWITCHES},
+        "claudeHooks": claude_hooks_installed(),
+        "accounts": [a.get("name") or a.get("user", "") for a in cfg.get("caldav", []) if a.get("user")],
+        "calendars": len(cfg.get("calendars", [])),
+        "shortcuts": cfg.get("shortcuts", {}),
+    })
+
+
+def apply_switch(key, value):
+    """Ayar sayfasından gelen değişikliği hemen uygula (yeniden başlatmadan)."""
+    global cfg, clip
+    if not config.set_switch(key, value):
+        return
+    cfg = config.load()
+    if key == "suppress_plasma_popups" and notifs:
+        notifs.suppress = bool(value)
+    elif key == "clipboard_history":
+        if value and clip is None:
+            clip = Clipboard(lambda v: state.update("clip", v))
+            state.update("clipOn", clip.start())
+        elif clip is not None:
+            clip.enabled = bool(value)
+            if not value:   # kapatınca sabitlenenler dahil hepsi silinir
+                clip.items = []
+                clip._publish()
+            state.update("clipOn", bool(value))
+    elif key == "lyrics" and not value and lyrics:
+        lyrics.set_want(False)
+    publish_settings()
+
+
+def set_claude_hooks(on):
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "install-claude-hooks.sh")
+    run(script, *([] if on else ["--remove"]), timeout=10)
+    publish_settings()
+
+
 def refresh_controls():
     state.update("controls", {
         "wifiOn": controls.wifi_enabled(),
@@ -399,6 +450,7 @@ def slow_poller():
             last_cfg = config.mtime()
             cfg = config.load()
             state.update("apps", apps.resolve(cfg.get("apps", [])))
+            publish_settings()
         if changed or time.time() - last_cal > 600:
             last_cal = time.time()
             try:
@@ -621,10 +673,14 @@ def execute(cmd, arg):
         ui["hidden"] = (not ui["hidden"]) if cmd == "toggle_hide" else cmd == "hide"
         config.save_ui(ui)
         state.update("ui", dict(ui))
+    elif cmd == "setting" and isinstance(arg, dict):
+        apply_switch(str(arg.get("key", "")), bool(arg.get("value")))
+    elif cmd == "claude_hooks":
+        bg(lambda: set_claude_hooks(bool(arg)))
     elif cmd == "agent_answer" and isinstance(arg, dict):
         agents.answer(int(arg.get("id", 0)), str(arg.get("answer", "")))
     elif cmd == "lyrics_want" and lyrics:
-        lyrics.set_want(bool(arg))
+        lyrics.set_want(bool(arg) and cfg.get("lyrics", True))
     elif cmd.startswith("focus_") and focus_timer:
         if cmd == "focus_toggle":
             focus_timer.toggle()
@@ -831,6 +887,7 @@ def main():
     lyrics = lyrics_mod.Lyrics(lambda v: state.update("lyrics", v))
     privacy.Privacy(lambda v: state.update("privacy", v))
     Alerts(emit_alert)
+    publish_settings()
     fc = cfg.get("focus", {})
     focus_timer = focus.Focus(lambda v: state.update("focus", v), set_dnd,
                               fc.get("work", 25), fc.get("break", 5))

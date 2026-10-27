@@ -82,6 +82,10 @@ Window {
     property bool lyricsOn: false
     // Gizlilik: kamera / mikrofon / ekran paylaşımını kullanan uygulamalar
     property var priv: ({ camera: [], mic: [], screen: [] })
+    // Ayarlar sayfasının gösterdiği değerler (arka uç config.json'dan yayınlar)
+    property var settings: ({ suppress_plasma_popups: true, hide_in_fullscreen: true, clipboard_history: true,
+                              lyrics: true, meeting_alerts: true, privacy_dots: true, claudeHooks: false,
+                              accounts: [], calendars: 0, shortcuts: {} })
     // Claude Code: bekleyen izin istekleri (en eskisi önce) ve son "bitti" haberi
     property var agents: ({ asks: [], done: { seq: 0 } })
     readonly property var ask: agents.asks.length > 0 ? agents.asks[0] : null
@@ -89,13 +93,14 @@ Window {
     property var alertD: ({ kind: "", seq: 0 })
     readonly property var privDots: {
         var d = []
+        if (!settings.privacy_dots) return d
         if (priv.camera.length) d.push("#34c759")
         if (priv.mic.length) d.push("#ff9f0a")
         if (priv.screen.length && rec.state === "idle") d.push("#0a84ff")
         return d
     }
     property var lyr: ({ track: "", status: "none", lines: [] })
-    readonly property bool lyricsWant: panelOpen && tab === 0 && lyricsOn && hasMedia
+    readonly property bool lyricsWant: panelOpen && tab === 0 && lyricsOn && hasMedia && settings.lyrics
     onLyricsWantChanged: send("lyrics_want", lyricsWant)
     readonly property bool focusOn: pomo.phase !== "idle"
     readonly property real focusLeft: pomo.running ? Math.max(0, pomo.end - focusNow) : pomo.left
@@ -404,7 +409,7 @@ Window {
             if (alerted[key]) continue
             alerted[e.id + "a"] = true
             if (mins <= 1.2) alerted[e.id + "b"] = true
-            if (!panelOpen && !ui.dnd) {
+            if (!panelOpen && !ui.dnd && settings.meeting_alerts) {
                 banner = { kind: "event", title: e.title, start: e.start, end: e.end, cal: e.cal,
                            location: e.location, url: meetingService(e.url) ? e.url : "" }
                 flash("event", 9000)
@@ -451,6 +456,7 @@ Window {
         if (s.privacy !== undefined) priv = s.privacy
         if (s.alert !== undefined) alertD = s.alert
         if (s.agents !== undefined) agents = s.agents
+        if (s.settings !== undefined) settings = s.settings
         if (s.calendar !== undefined) { cal = s.calendar; updateNext() }
         if (s.calAdd !== undefined && s.calAdd.seq !== calAddSeq) {
             if (calAddSeq >= 0) toast(s.calAdd.ok ? "Eklendi · " + s.calAdd.msg : "Eklenemedi: " + s.calAdd.msg,
@@ -1377,7 +1383,7 @@ Window {
                     Item {
                         id: tabBar
                         Layout.fillHeight: true
-                        Layout.preferredWidth: selW + 5 * otherW
+                        Layout.preferredWidth: selW + (tabs.length - 1) * otherW
 
                         readonly property var tabs: [
                             { icon: root.ic("isle-music"), label: "Müzik" },
@@ -1392,14 +1398,16 @@ Window {
                         // Seçili sekme etiketiyle birlikte hap; diğerleri yalnızca ikon
                         // Seçili sekmenin genişliği etiketine göre (Isle: 10 px iç boşluk, 6 px ikon arası)
                         readonly property var labelW: [42, 52, 34, 46, 50, 62, 44, 50]
-                        readonly property real selW: 20 + 16 + 6 + labelW[root.tab]
-                        readonly property real otherW: 34
+                        // Ayarlar (8) bir sekme değil: o açıkken hiçbir sekme seçili görünmez
+                        readonly property real selW: root.tab < 8 ? 20 + 16 + 6 + labelW[root.tab] : otherW
+                        readonly property real otherW: 32
 
                         Rectangle {
                             width: tabBar.selW
                             height: 28
                             y: 4
                             x: root.tab * tabBar.otherW
+                            visible: root.tab < 8
                             radius: 14
                             color: Qt.rgba(1, 1, 1, 0.09)
                             Behavior on x { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
@@ -1493,6 +1501,16 @@ Window {
                     CtlButton {
                         Layout.preferredWidth: 28
                         Layout.preferredHeight: 28
+                        icon: root.ic("isle-settings")
+                        iconSize: 15
+                        tint: root.tab === 8 ? "white" : Qt.rgba(1, 1, 1, 0.6)
+                        filled: root.tab === 8
+                        fillColor: Qt.rgba(1, 1, 1, 0.12)
+                        onClicked: root.tab = root.tab === 8 ? 0 : 8
+                    }
+                    CtlButton {
+                        Layout.preferredWidth: 28
+                        Layout.preferredHeight: 28
                         // Açık göz: ada hep görünür. Kapalı göz: gizli mod (üst kenara çekilir).
                         icon: root.ui.hidden ? "view-hidden" : "view-visible"
                         iconSize: 15
@@ -1564,6 +1582,12 @@ Window {
                         index: 7
                         current: root.tab
                         PageTools { anchors.fill: parent; sh: root }
+                    }
+                    PageFade {
+                        anchors.fill: parent
+                        index: 8
+                        current: root.tab
+                        PageSettings { anchors.fill: parent; sh: root }
                     }
                 }
                 Item { Layout.fillHeight: true }

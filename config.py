@@ -33,6 +33,12 @@ DEFAULTS = {
     "hide_in_fullscreen": True,
     # Pano geçmişi (yalnızca bellekte tutulur, diske yazılmaz)
     "clipboard_history": True,
+    # Şarkı sözleri (LRCLIB'e yalnızca söz görünümü açıkken sorulur)
+    "lyrics": True,
+    # Takvimdeki toplantıdan 5 dk önce uyarı
+    "meeting_alerts": True,
+    # Kamera / mikrofon / ekran paylaşımı noktaları
+    "privacy_dots": True,
     # Genel klavye kısayolları (KWin üzerinden). Boş bırakırsan o kısayol kapanır.
     "shortcuts": {
         "toggle_hide": "Meta+Alt+H",
@@ -58,6 +64,29 @@ def load():
     except Exception as e:  # bozuk JSON: varsayılanlarla devam et
         print("config hatası:", e, flush=True)
     return cfg
+
+
+# Adanın Ayarlar sayfasından değiştirilebilen açık/kapalı ayarlar
+SWITCHES = ("suppress_plasma_popups", "hide_in_fullscreen", "clipboard_history",
+            "lyrics", "meeting_alerts", "privacy_dots")
+
+
+def set_switch(key, value):
+    """Ayar dosyasında tek bir açık/kapalı ayarı değiştirir; dosyadaki diğer her şey korunur."""
+    if key not in SWITCHES:
+        return False
+    try:
+        with open(PATH) as f:
+            data = json.load(f)
+    except Exception:
+        data = dict(DEFAULTS)
+    data[key] = bool(value)
+    tmp = PATH + ".tmp"
+    os.makedirs(os.path.dirname(PATH), exist_ok=True)
+    with open(tmp, "w") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+    os.replace(tmp, PATH)
+    return True
 
 
 def mtime():
