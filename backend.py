@@ -539,7 +539,18 @@ class Mpris:
             props = self.get_all(name)
             if props is not None:
                 infos[name] = props
-        playing = [n for n, p in infos.items() if p.get("PlaybackStatus") == "Playing"]
+        # Tarayıcı eklentisi (plasma-browser-integration) varken tarayıcının kendi MPRIS kaydı
+        # yinelenir: başlığı genel ("... Web Player"), ama konumu eklentininkinden daha doğru.
+        # Kaydı listeden çıkar, konumunu eklentiye ver.
+        sibling = {}
+        for name, props in list(infos.items()):
+            pid = props.get("Metadata", {}).get("kde:pid")
+            if pid is None:
+                continue
+            for other in list(infos):
+                if other != name and other.endswith(f".instance{pid}"):
+                    sibling[name] = infos.pop(other)
+        playing =[n for n, p in infos.items() if p.get("PlaybackStatus") == "Playing"]
         paused = [n for n, p in infos.items() if p.get("PlaybackStatus") == "Paused"]
         if playing:
             if self.current in playing:
@@ -565,7 +576,7 @@ class Mpris:
         artists = md.get("xesam:artist", [])
         if isinstance(artists, str):
             artists = [artists]
-        pos = p.get("Position", 0)
+        pos = sibling.get(pick, p).get("Position", 0)
         status = p.get("PlaybackStatus", "Stopped")
         state.update("media", {
             "active": True,
