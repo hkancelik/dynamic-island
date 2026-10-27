@@ -96,7 +96,7 @@ Item {
                         centerX: 62; centerY: 62; radiusX: 58; radiusY: 58
                         startAngle: -90
                         sweepAngle: page.idle ? 0 : 360 * sh.focusFrac
-                        Behavior on sweepAngle { NumberAnimation { duration: 900 } }
+                        Behavior on sweepAngle { enabled: page.visible && !page.f.running; NumberAnimation { duration: 400 } }
                     }
                 }
             }

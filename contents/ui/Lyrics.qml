@@ -25,9 +25,9 @@ Item {
         return ans
     }
 
-    // Söz görünümündeyken konum sık güncellensin (satır geçişleri akıcı olsun)
+    // Söz görünümündeyken konum sık güncellensin (satır geçişi en çok 1/4 sn gecikir)
     Timer {
-        interval: 100
+        interval: 250
         repeat: true
         running: lp.visible && sh.playing
         onTriggered: sh.updatePos()
@@ -89,6 +89,7 @@ Item {
                 trackColor: Qt.rgba(1, 1, 1, 0.2)
                 fillColor: "white"
                 interactive: sh.media.canSeek === true
+                smooth: false
                 value: sh.media.length > 0 ? sh.pos / sh.media.length : 0
                 onCommitted: v => sh.send("seek", v * sh.media.length)
             }
@@ -141,14 +142,34 @@ Item {
                 spacing: 6
                 interactive: !lp.synced
                 boundsBehavior: Flickable.StopAtBounds
-                // Söylenen satır yukarıdan %36'da durur
-                highlightRangeMode: lp.synced ? ListView.StrictlyEnforceRange : ListView.NoHighlightRange
-                preferredHighlightBegin: height * 0.36
-                preferredHighlightEnd: height * 0.36 + 30
-                highlightMoveDuration: 520
-                highlightMoveVelocity: -1
-                currentIndex: lp.synced ? Math.max(0, lp.cur) : 0
-                header: Item { height: lp.synced ? 0 : 4 }
+                cacheBuffer: 4000
+                // Söylenen satır yukarıdan %36'da durur. ListView'in vurgu aralığı iki satıra
+                // sarılan sözlerde hiç durulmayıp sürekli kaydırıyordu (saniyede 60 çizim):
+                // bunun yerine satır değişince bir kez kayan animasyon.
+                header: Item { height: lp.synced ? list.height * 0.36 : 4 }
+                footer: Item { height: lp.synced ? list.height * 0.64 : 0 }
+                NumberAnimation on contentY {
+                    id: follow
+                    running: false
+                    duration: 520
+                    easing.type: Easing.OutCubic
+                }
+                function followCur(animate) {
+                    if (!lp.synced || lp.cur < 0) return
+                    var it = itemAtIndex(lp.cur)
+                    if (!it) { positionViewAtIndex(lp.cur, ListView.Beginning); it = itemAtIndex(lp.cur) }
+                    if (!it) return
+                    var target = it.y - height * 0.36
+                    follow.stop()
+                    if (animate && visible) { follow.from = contentY; follow.to = target; follow.start() }
+                    else contentY = target
+                }
+                Connections {
+                    target: lp
+                    function onCurChanged() { list.followCur(true) }
+                    function onVisibleChanged() { if (lp.visible) Qt.callLater(list.followCur, false) }
+                }
+                onCountChanged: Qt.callLater(followCur, false)
 
                 delegate: Item {
                     id: row
@@ -195,7 +216,7 @@ Item {
                                 width: 7; height: 7; radius: 3.5
                                 color: "white"
                                 SequentialAnimation on scale {
-                                    running: row.now && sh.playing && lp.visible
+                                    running: row.pause && row.now && sh.playing && lp.visible
                                     loops: Animation.Infinite
                                     PauseAnimation { duration: index * 180 }
                                     NumberAnimation { to: 1.35; duration: 600; easing.type: Easing.InOutSine }
@@ -255,7 +276,8 @@ Item {
                             color: "white"
                             opacity: 0.5
                             SequentialAnimation on opacity {
-                                running: lp.visible
+                                // yalnızca "aranıyor" yazısı görünürken (gizliyken de çizim yaptırıyordu)
+                                running: lp.visible && !list.visible && lyr.status === "loading"
                                 loops: Animation.Infinite
                                 PauseAnimation { duration: index * 180 }
                                 NumberAnimation { to: 1; duration: 600 }

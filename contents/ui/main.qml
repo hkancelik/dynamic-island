@@ -621,9 +621,10 @@ Window {
         onTriggered: { root.nowMs = Date.now(); root.updateNext(); root.checkEvents() }
     }
     Timer {
-        interval: 250
+        // Konum yalnızca göründüğü yerde güncellenir (kısa medya görünümü, Müzik sekmesi)
+        interval: 500
         repeat: true
-        running: root.playing && (root.mode === "media" || root.mode === "panel")
+        running: root.playing && (root.mode === "media" || (root.mode === "panel" && root.tab === 0))
         triggeredOnStart: true
         onTriggered: root.updatePos()
     }
@@ -789,27 +790,32 @@ Window {
             Behavior on scale { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
         }
 
-        // Müzik çubukları (Isle): beyaz, duraklayınca soluk
+        // Müzik çubukları (Isle): beyaz, duraklayınca soluk. Saniyede 10 adım: sürekli
+        // animasyon pencereyi saniyede 60 kez çizdirir (~%13 işlemci), adımlı hali çok daha hafif.
         component Bars: Row {
             id: bars
             property bool live: true
+            property real t: 0
             spacing: 2
             opacity: root.playing ? 1 : 0.43
+            Timer {
+                interval: 100
+                repeat: true
+                running: root.playing && bars.live
+                onTriggered: bars.t += 0.1
+            }
             Repeater {
                 model: 4
                 Rectangle {
                     required property int index
+                    readonly property var speed: [7.1, 9.3, 6.2, 8.4]
                     width: 3
                     anchors.verticalCenter: parent.verticalCenter
                     radius: 1.5
-                    height: 4
+                    height: root.playing && bars.live
+                            ? Math.round(4 + 8 * Math.abs(Math.sin(bars.t * speed[index] + index * 1.3)))
+                            : 4
                     color: "white"
-                    SequentialAnimation on height {
-                        running: root.playing && bars.live
-                        loops: Animation.Infinite
-                        NumberAnimation { to: 12 - (index % 2) * 3; duration: 260 + index * 90; easing.type: Easing.InOutSine }
-                        NumberAnimation { to: 4 + index % 3; duration: 300 + index * 70; easing.type: Easing.InOutSine }
-                    }
                 }
             }
         }
@@ -1062,6 +1068,7 @@ Window {
                 barHeight: 3
                 trackColor: Qt.rgba(1, 1, 1, 0.2)
                 interactive: root.media.canSeek === true
+                smooth: false
                 fillColor: "white"
                 value: root.media.length > 0 ? root.pos / root.media.length : 0
                 onCommitted: v => root.send("seek", v * root.media.length)
