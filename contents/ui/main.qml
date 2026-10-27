@@ -82,6 +82,8 @@ Window {
     property bool lyricsOn: false
     // Gizlilik: kamera / mikrofon / ekran paylaşımını kullanan uygulamalar
     property var priv: ({ camera: [], mic: [], screen: [] })
+    // Son sistem uyarısı (Caps Lock, Bluetooth, internet)
+    property var alertD: ({ kind: "", seq: 0 })
     readonly property var privDots: {
         var d = []
         if (priv.camera.length) d.push("#34c759")
@@ -148,6 +150,7 @@ Window {
         if (dropHover) return "drop"
         if (flashKind === "notif" || flashKind === "event") return "banner"
         if (flashKind === "toast") return "toast"
+        if (flashKind === "alert") return "alert"
         if (flashKind === "volume") return "volume"
         if (flashKind === "charge") return "charge"
         if (flashKind === "track" || (hovered && hasMedia)) return "media"
@@ -182,6 +185,7 @@ Window {
         case "media": return 400
         case "volume": return 300
         case "charge": return 300
+        case "alert": return 330
         default: return idleW
         }
     }
@@ -196,6 +200,7 @@ Window {
         case "media": return 84
         case "volume": return 52
         case "charge": return 56
+        case "alert": return 56
         default: return 32
         }
     }
@@ -424,6 +429,7 @@ Window {
         if (s.focus !== undefined) { pomo = s.focus; focusNow = Date.now() }
         if (s.lyrics !== undefined) lyr = s.lyrics
         if (s.privacy !== undefined) priv = s.privacy
+        if (s.alert !== undefined) alertD = s.alert
         if (s.calendar !== undefined) { cal = s.calendar; updateNext() }
         if (s.calAdd !== undefined && s.calAdd.seq !== calAddSeq) {
             if (calAddSeq >= 0) toast(s.calAdd.ok ? "Eklendi · " + s.calAdd.msg : "Eklenemedi: " + s.calAdd.msg,
@@ -453,6 +459,11 @@ Window {
 
         // Kısayol (Meta+Alt+I) ile panel aç/kapat
         if (s.panelReq !== undefined && s.panelReq !== o.panelReq) panelOpen = !panelOpen
+
+        // Sistem uyarısı (bildirim/etkinlik gösterilirken araya girmez)
+        if (s.alert !== undefined && (o.alert === undefined || s.alert.seq !== o.alert.seq)
+            && flashKind !== "notif" && flashKind !== "event")
+            flash("alert", s.alert.kind === "net" && !s.alert.connected ? 4000 : 2200)
 
         // Odak sayacı: aşama değişti
         if (s.focus !== undefined && o.focus !== undefined && s.focus.seq !== o.focus.seq)
@@ -1080,6 +1091,56 @@ Window {
                     : root.ic("isle-check-symbolic")
                 badgeColor: root.toastIcon === "chronometer" ? root.focusColor : toastView.bad ? "#ff453a" : "#30d158"
                 title: root.toastText
+            }
+        }
+
+        // ==============================================================
+        // SİSTEM UYARISI: Caps Lock, Bluetooth cihazı, internet
+        // ==============================================================
+        View {
+            id: alertView
+            on: root.mode === "alert"
+            width: 330; height: 56
+            readonly property var a: root.alertD
+            readonly property bool headset: String(a.icon || "").indexOf("audio") >= 0
+
+            PeekRow {
+                anchors.fill: parent
+                anchors.leftMargin: 14
+                anchors.rightMargin: 18
+                icon: alertView.a.kind === "caps" ? root.ic("isle-capslock-symbolic")
+                    : alertView.a.kind === "bt" ? (alertView.headset ? root.ic("isle-headphones-symbolic") : root.ic("isle-bluetooth-symbolic"))
+                    : alertView.a.connected ? root.ic("isle-wifi-symbolic") : root.ic("isle-wifi-off-symbolic")
+                badgeColor: alertView.a.kind === "caps" ? "#2c2c2e"
+                          : alertView.a.kind === "bt" ? (alertView.a.connected ? "#0a84ff" : "#2c2c2e")
+                          : alertView.a.connected ? "#0a84ff" : "#ff453a"
+                level: alertView.a.kind === "bt" && alertView.a.connected && alertView.a.battery >= 0 ? alertView.a.battery / 100 : -1
+                levelColor: alertView.a.battery >= 0 && alertView.a.battery <= 20 ? "#ff453a" : "#30d158"
+                title: alertView.a.kind === "caps" ? "Caps Lock"
+                     : alertView.a.kind === "bt" ? (alertView.a.name || "Bluetooth")
+                     : alertView.a.connected ? "Bağlandı" : "İnternet bağlantısı kesildi"
+                subtitle: alertView.a.kind === "bt" ? (alertView.a.connected ? "Bağlandı" : "Bağlantı kesildi")
+                        : alertView.a.kind === "net" ? (alertView.a.connected ? (alertView.a.wired ? "Kablolu ağ" : (alertView.a.ssid || "Wi-Fi"))
+                                                                              : "Ağ yok")
+                        : ""
+                value: alertView.a.kind === "bt" && alertView.a.connected && alertView.a.battery >= 0 ? alertView.a.battery + "%" : ""
+
+                // Caps Lock durumu: renkli hap (Isle)
+                Rectangle {
+                    visible: alertView.a.kind === "caps"
+                    width: capsText.implicitWidth + 20; height: 24; radius: 12
+                    color: alertView.a.on ? Qt.rgba(0.19, 0.82, 0.35, 0.18) : Qt.rgba(1, 1, 1, 0.08)
+                    Text {
+                        id: capsText
+                        renderType: Text.CurveRendering
+                        font.family: "Inter"
+                        anchors.centerIn: parent
+                        text: alertView.a.on ? "Açık" : "Kapalı"
+                        color: alertView.a.on ? "#30d158" : Qt.rgba(1, 1, 1, 0.6)
+                        font.pixelSize: 12
+                        font.weight: Font.DemiBold
+                    }
+                }
             }
         }
 
