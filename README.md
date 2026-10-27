@@ -4,6 +4,12 @@ KDE Plasma 6 (Wayland) için ekranın üstünde duran, Apple'ın Dynamic Island'
 [Isle](https://github.com/zickrian/isle)'ın tasarımından esinlenen bir ada.
 
 - **Müzik:** MPRIS oynatıcıları, kapak, ilerleme, ses çıkışı seçimi
+- **Senkron şarkı sözleri:** [LRCLIB](https://lrclib.net)'ten; söylenen satır parlak, satıra tıkla → oraya atla.
+  Yalnızca söz görünümü açıkken sorulur, sonuç `~/.cache/dynamic-island/lyrics` altında saklanır
+- **Odak (Pomodoro):** halka + kalan süre, odak/mola süreleri; odakta Rahatsız Etme açılır,
+  süre kapalı adada da görünür
+- **Kapalı ada:** saat ortada; solda kapak / odak halkası / kayıt noktası, sağda müzik çubukları ve odak süresi.
+  Ses, şarj, bildirim ve uyarılar Isle tarzı kısa görünümlerle
 - **Bildirimler:** Plasma bildirimleri adada toplanır, Rahatsız Etme
 - **Takvim:** iCal/.ics adresleri ve CalDAV (Apple iCloud), adadan etkinlik ekleme
 - **Kontrol:** ses, her ekranın ayrı parlaklığı (DDC/CI), Gece Işığı, Wi-Fi, Bluetooth, güç profili

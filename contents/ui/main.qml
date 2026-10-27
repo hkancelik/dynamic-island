@@ -78,6 +78,11 @@ Window {
     // Odak sayacı (arka uçta tutulur): phase idle|work|break, running, end (ms), left (ms)
     property var pomo: ({ phase: "idle", running: false, end: 0, left: 1500000, work: 25, brk: 5, round: 0, seq: 0 })
     property real focusNow: Date.now()
+    // Şarkı sözleri: görünüm açık mı, arka uçtan gelen sözler
+    property bool lyricsOn: false
+    property var lyr: ({ track: "", status: "none", lines: [] })
+    readonly property bool lyricsWant: panelOpen && tab === 0 && lyricsOn && hasMedia
+    onLyricsWantChanged: send("lyrics_want", lyricsWant)
     readonly property bool focusOn: pomo.phase !== "idle"
     readonly property real focusLeft: pomo.running ? Math.max(0, pomo.end - focusNow) : pomo.left
     readonly property real focusFrac: {
@@ -150,7 +155,7 @@ Window {
 
     // Açık panel: geniş ve alçak (Isle ölçüleri). Başlık 40 + sayfa 150 + alt boşluk 14.
     readonly property real panelScale: 1
-    readonly property int panelW: 600
+    readonly property int panelW: lyricsWant ? 760 : 600
     readonly property int panelH: 212
 
     readonly property int islandW: {
@@ -402,6 +407,7 @@ Window {
         if (s.shelf !== undefined) shelf = s.shelf
         if (s.rec !== undefined) rec = s.rec
         if (s.focus !== undefined) { pomo = s.focus; focusNow = Date.now() }
+        if (s.lyrics !== undefined) lyr = s.lyrics
         if (s.calendar !== undefined) { cal = s.calendar; updateNext() }
         if (s.calAdd !== undefined && s.calAdd.seq !== calAddSeq) {
             if (calAddSeq >= 0) toast(s.calAdd.ok ? "Eklendi · " + s.calAdd.msg : "Eklenemedi: " + s.calAdd.msg,
