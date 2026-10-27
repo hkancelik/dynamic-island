@@ -373,6 +373,18 @@ Window {
         nextEvent = best
     }
 
+    // Toplantı bağlantısı mı? (Katıl düğmesi yalnızca bunlarda)
+    function meetingService(url) {
+        var u = String(url || "")
+        if (u.indexOf("meet.google.com") >= 0) return "Google Meet"
+        if (/zoom\.(us|com)\//.test(u)) return "Zoom"
+        if (u.indexOf("teams.microsoft.com") >= 0 || u.indexOf("teams.live.com") >= 0) return "Microsoft Teams"
+        if (u.indexOf("webex.com") >= 0) return "Webex"
+        if (u.indexOf("whereby.com") >= 0) return "Whereby"
+        if (u.indexOf("meet.jit.si") >= 0) return "Jitsi"
+        return ""
+    }
+
     function checkEvents() {
         if (!loaded) return
         var now = Date.now()
@@ -381,14 +393,15 @@ Window {
             var e = ev[i]
             if (e.allDay) continue
             var mins = (e.start - now) / 60000
-            if (mins <= 0 || mins > 10) continue
+            if (mins <= -0.5 || mins > 5) continue
             var key = e.id + (mins <= 1.2 ? "b" : "a")
             if (alerted[key]) continue
             alerted[e.id + "a"] = true
             if (mins <= 1.2) alerted[e.id + "b"] = true
             if (!panelOpen && !ui.dnd) {
-                banner = { kind: "event", title: e.title, start: e.start, cal: e.cal, location: e.location }
-                flash("event", 6500)
+                banner = { kind: "event", title: e.title, start: e.start, end: e.end, cal: e.cal,
+                           location: e.location, url: meetingService(e.url) ? e.url : "" }
+                flash("event", 9000)
             }
             return
         }
@@ -907,9 +920,16 @@ Window {
                 anchors.rightMargin: 18
                 icon: bannerView.isEvent ? root.ic("isle-calendar") : ""
                 badgeColor: bannerView.isEvent ? root.calColor(root.banner.cal) : "#1c1c1e"
-                title: bannerView.isEvent ? (root.banner.title || "") : (root.banner.title || root.banner.app || "")
+                title: bannerView.isEvent
+                    ? (root.banner.title || "") + (function () {
+                          var m = Math.round((root.banner.start - root.nowMs) / 60000)
+                          return m >= 1 ? " · " + m + " dk sonra" : " · şimdi"
+                      })()
+                    : (root.banner.title || root.banner.app || "")
                 subtitle: bannerView.isEvent
-                    ? root.untilText(root.banner) + (root.banner.location ? " · " + root.banner.location : "")
+                    ? root.clockOf(root.banner.start) + (root.banner.end > root.banner.start ? " – " + root.clockOf(root.banner.end) : "")
+                      + (root.meetingService(root.banner.url) ? " · " + root.meetingService(root.banner.url)
+                         : root.banner.location ? " · " + root.banner.location : "")
                     : (root.banner.body ? String(root.banner.body).replace(/\s+/g, " ") : (root.banner.app || ""))
 
                 Rectangle {
