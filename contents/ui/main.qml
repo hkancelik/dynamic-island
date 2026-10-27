@@ -80,6 +80,15 @@ Window {
     property real focusNow: Date.now()
     // Şarkı sözleri: görünüm açık mı, arka uçtan gelen sözler
     property bool lyricsOn: false
+    // Gizlilik: kamera / mikrofon / ekran paylaşımını kullanan uygulamalar
+    property var priv: ({ camera: [], mic: [], screen: [] })
+    readonly property var privDots: {
+        var d = []
+        if (priv.camera.length) d.push("#34c759")
+        if (priv.mic.length) d.push("#ff9f0a")
+        if (priv.screen.length && rec.state === "idle") d.push("#0a84ff")
+        return d
+    }
     property var lyr: ({ track: "", status: "none", lines: [] })
     readonly property bool lyricsWant: panelOpen && tab === 0 && lyricsOn && hasMedia
     onLyricsWantChanged: send("lyrics_want", lyricsWant)
@@ -150,7 +159,13 @@ Window {
     readonly property string rightText: rec.state === "recording" ? fmt(secTick - rec.since)
                                       : rec.state !== "idle" ? "" : focusOn ? mmss(focusLeft) : ""
     readonly property bool rightBars: hasMedia && rec.state === "idle"
-    readonly property int slotW: Math.max(24, (rightBars ? 18 : 0) + (rightText !== "" ? 44 + (rightBars ? 6 : 0) : 0))
+    readonly property int privW: privDots.length ? privDots.length * 11 - 4 : 0
+    readonly property int slotW: {
+        var parts = [rightBars ? 18 : 0, rightText !== "" ? 44 : 0, privW].filter(function (w) { return w > 0 })
+        var w = 0
+        for (var i = 0; i < parts.length; i++) w += parts[i] + (i ? 6 : 0)
+        return Math.max(24, w)
+    }
     readonly property int idleW: 32 + 2 * slotW + 20 + 46
 
     // Açık panel: geniş ve alçak (Isle ölçüleri). Başlık 40 + sayfa 150 + alt boşluk 14.
@@ -408,6 +423,7 @@ Window {
         if (s.rec !== undefined) rec = s.rec
         if (s.focus !== undefined) { pomo = s.focus; focusNow = Date.now() }
         if (s.lyrics !== undefined) lyr = s.lyrics
+        if (s.privacy !== undefined) priv = s.privacy
         if (s.calendar !== undefined) { cal = s.calendar; updateNext() }
         if (s.calAdd !== undefined && s.calAdd.seq !== calAddSeq) {
             if (calAddSeq >= 0) toast(s.calAdd.ok ? "Eklendi · " + s.calAdd.msg : "Eklenemedi: " + s.calAdd.msg,
@@ -842,8 +858,21 @@ Window {
                     font.letterSpacing: -0.2
                     font.features: { "tnum": 1 }
                 }
+                Row {         // gizlilik noktaları
+                    visible: root.privDots.length > 0
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 4
+                    Repeater {
+                        model: root.privDots
+                        Rectangle {
+                            required property var modelData
+                            width: 7; height: 7; radius: 3.5
+                            color: modelData
+                        }
+                    }
+                }
                 Ico {         // Rahatsız Etme (başka bir şey yokken)
-                    visible: !root.rightBars && root.rightText === "" && root.ui.dnd
+                    visible: !root.rightBars && root.rightText === "" && root.privDots.length === 0 && root.ui.dnd
                     anchors.verticalCenter: parent.verticalCenter
                     source: root.ic("isle-moon")
                     size: 13

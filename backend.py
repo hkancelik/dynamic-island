@@ -39,6 +39,7 @@ import caldav  # noqa: E402
 import config  # noqa: E402
 import focus  # noqa: E402
 import lyrics as lyrics_mod  # noqa: E402
+import privacy  # noqa: E402
 import controls  # noqa: E402
 import sysinfo  # noqa: E402
 from clipboard import Clipboard  # noqa: E402
@@ -775,6 +776,7 @@ def main():
     refresh_audio()
     global store, stats, clip, recorder, focus_timer, lyrics
     lyrics = lyrics_mod.Lyrics(lambda v: state.update("lyrics", v))
+    privacy.Privacy(lambda v: state.update("privacy", v))
     fc = cfg.get("focus", {})
     focus_timer = focus.Focus(lambda v: state.update("focus", v), set_dnd,
                               fc.get("work", 25), fc.get("break", 5))
