@@ -75,6 +75,16 @@ Window {
     property var notes: []
     property var shelf: []
     property var rec: ({ state: "idle", since: 0, error: "", last: "" })
+    // Odak sayacı (arka uçta tutulur): phase idle|work|break, running, end (ms), left (ms)
+    property var pomo: ({ phase: "idle", running: false, end: 0, left: 1500000, work: 25, brk: 5, round: 0, seq: 0 })
+    property real focusNow: Date.now()
+    readonly property bool focusOn: pomo.phase !== "idle"
+    readonly property real focusLeft: pomo.running ? Math.max(0, pomo.end - focusNow) : pomo.left
+    readonly property real focusFrac: {
+        var len = (pomo.phase === "break" ? pomo.brk : pomo.work) * 60000
+        return len > 0 ? Math.max(0, Math.min(1, focusLeft / len)) : 0
+    }
+    readonly property color focusColor: pomo.phase === "break" ? "#30d158" : "#ff9f0a"
     property real secTick: Date.now()
     property bool deviceMenu: false
     property bool dropHover: false
@@ -111,7 +121,7 @@ Window {
     // Mod
     // ------------------------------------------------------------------
     property bool panelOpen: false
-    property int tab: 0                 // 0 Müzik, 1 Bildirim, 2 Takvim, 3 Kontrol, 4 Uygulama, 5 Sistem, 6 Araçlar
+    property int tab: 0                 // 0 Müzik, 1 Bildirim, 2 Odak, 3 Takvim, 4 Kontrol, 5 Uygulama, 6 Sistem, 7 Araçlar
     property bool hovered: false
     property string flashKind: ""       // volume | charge | track | notif | event
     property string chargeKind: "charging"
@@ -353,7 +363,7 @@ Window {
         var k = banner.kind
         flashKind = ""
         if (k === "record") { send("open_recording"); return }
-        tab = k === "event" ? 2 : 1
+        tab = k === "event" ? 3 : 1
         panelOpen = true
     }
 
@@ -381,6 +391,7 @@ Window {
         if (s.notes !== undefined) notes = s.notes
         if (s.shelf !== undefined) shelf = s.shelf
         if (s.rec !== undefined) rec = s.rec
+        if (s.focus !== undefined) { pomo = s.focus; focusNow = Date.now() }
         if (s.calendar !== undefined) { cal = s.calendar; updateNext() }
         if (s.calAdd !== undefined && s.calAdd.seq !== calAddSeq) {
             if (calAddSeq >= 0) toast(s.calAdd.ok ? "Eklendi · " + s.calAdd.msg : "Eklenemedi: " + s.calAdd.msg,
@@ -410,6 +421,11 @@ Window {
 
         // Kısayol (Meta+Alt+I) ile panel aç/kapat
         if (s.panelReq !== undefined && s.panelReq !== o.panelReq) panelOpen = !panelOpen
+
+        // Odak sayacı: aşama değişti
+        if (s.focus !== undefined && o.focus !== undefined && s.focus.seq !== o.focus.seq)
+            toast(s.focus.phase === "break" ? "Mola zamanı · " + s.focus.brk + " dk" : "Odak zamanı · " + s.focus.work + " dk",
+                  "chronometer")
 
         // Ekran kaydı: durum bildirimleri
         if (s.rec !== undefined) {
@@ -507,6 +523,7 @@ Window {
             var c = root.clockOf(d.getTime())
             if (c !== root.clock) root.clock = c
             if (root.rec.state === "recording") root.secTick = d.getTime()
+            if (root.pomo.running) root.focusNow = d.getTime()
             var t = Qt.locale("tr_TR").toString(d, "dddd, d MMMM")
             if (t !== root.dateText) root.dateText = t
         }
@@ -531,7 +548,7 @@ Window {
     Timer {
         interval: 8000
         repeat: true
-        running: root.panelOpen && root.tab === 5
+        running: root.panelOpen && root.tab === 6
         triggeredOnStart: true
         onTriggered: root.send("stats_on")
     }
@@ -1216,6 +1233,7 @@ Window {
                         readonly property var tabs: [
                             { icon: root.ic("isle-music"), label: "Müzik" },
                             { icon: root.ic("isle-bell"), label: "Bildirim" },
+                            { icon: root.ic("isle-timer"), label: "Odak" },
                             { icon: root.ic("isle-calendar"), label: "Takvim" },
                             { icon: root.ic("isle-sun-symbolic"), label: "Kontrol" },
                             { icon: "view-app-grid-symbolic", label: "Uygulama" },
@@ -1224,7 +1242,7 @@ Window {
                         ]
                         // Seçili sekme etiketiyle birlikte hap; diğerleri yalnızca ikon
                         // Seçili sekmenin genişliği etiketine göre (Isle: 10 px iç boşluk, 6 px ikon arası)
-                        readonly property var labelW: [52, 62, 56, 60, 72, 54, 60]
+                        readonly property var labelW: [42, 52, 34, 46, 50, 62, 44, 50]
                         readonly property real selW: 20 + 16 + 6 + labelW[root.tab]
                         readonly property real otherW: 34
 
@@ -1280,7 +1298,7 @@ Window {
                                     }
                                     // rozetler: okunmamış bildirim, kayıt sürüyor
                                     Rectangle {
-                                        visible: (index === 1 && root.unread > 0) || (index === 4 && root.rec.state !== "idle")
+                                        visible: (index === 1 && root.unread > 0) || (index === 5 && root.rec.state !== "idle")
                                         x: parent.width / 2 + 3; y: 7
                                         width: 6; height: 6; radius: 3
                                         color: "#ff453a"
@@ -1320,7 +1338,7 @@ Window {
                             font.weight: Font.DemiBold
                             font.features: { "tnum": 1 }
                         }
-                        TapHandler { onTapped: root.tab = 2 }
+                        TapHandler { onTapped: root.tab = 3 }
                     }
 
                     CtlButton {
@@ -1366,29 +1384,35 @@ Window {
                         anchors.fill: parent
                         index: 2
                         current: root.tab
-                        PageCalendar { anchors.fill: parent; sh: root }
+                        PageFocus { anchors.fill: parent; sh: root }
                     }
                     PageFade {
                         anchors.fill: parent
                         index: 3
                         current: root.tab
-                        PageControls { anchors.fill: parent; sh: root }
+                        PageCalendar { anchors.fill: parent; sh: root }
                     }
                     PageFade {
                         anchors.fill: parent
                         index: 4
                         current: root.tab
-                        PageApps { anchors.fill: parent; sh: root }
+                        PageControls { anchors.fill: parent; sh: root }
                     }
                     PageFade {
                         anchors.fill: parent
                         index: 5
                         current: root.tab
-                        PageSystem { anchors.fill: parent; sh: root }
+                        PageApps { anchors.fill: parent; sh: root }
                     }
                     PageFade {
                         anchors.fill: parent
                         index: 6
+                        current: root.tab
+                        PageSystem { anchors.fill: parent; sh: root }
+                    }
+                    PageFade {
+                        anchors.fill: parent
+                        index: 7
                         current: root.tab
                         PageTools { anchors.fill: parent; sh: root }
                     }
@@ -1399,7 +1423,7 @@ Window {
             // Ses çıkışı seçici (Ana sayfadaki hoparlör düğmesinden açılır)
             Rectangle {
                 id: deviceMenuBox
-                visible: root.deviceMenu && root.tab === 3
+                visible: root.deviceMenu && root.tab === 4
                 z: 10
                 x: 28
                 y: 74
