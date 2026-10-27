@@ -135,6 +135,7 @@ Item {
                     trackColor: Qt.rgba(1, 1, 1, 0.2)
                     fillColor: "white"
                     interactive: page.media.canSeek === true
+                    smooth: false
                     value: page.media.length > 0 ? sh.pos / page.media.length : 0
                     onCommitted: v => sh.send("seek", v * page.media.length)
                 }

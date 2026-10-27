@@ -27,9 +27,12 @@ class Alerts:
     # -- Caps Lock: klavye LED'i (Wayland'de en ucuz, izinsiz yol) -----------------
     def _caps_loop(self):
         last = None
+        leds, found_at = [], 0
         while True:
+            if time.time() - found_at > 60:   # klavye takılıp çıkarılabilir
+                leds, found_at = glob.glob("/sys/class/leds/*::capslock/brightness"), time.time()
             on = False
-            for p in glob.glob("/sys/class/leds/*::capslock/brightness"):
+            for p in leds:
                 try:
                     with open(p) as f:
                         on = on or f.read().strip() not in ("", "0")

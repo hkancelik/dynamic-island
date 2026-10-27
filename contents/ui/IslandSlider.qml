@@ -11,7 +11,8 @@ Item {
     property color trackColor: "#2c2c2e"
     property int barHeight: 8
     property bool interactive: true
-    property bool knob: false      // Isle tarzı: ince çizgi + beyaz yuvarlak tutamak
+    property bool knob: false
+    property bool smooth: true     // değer değişince dolgu kaysın mı      // Isle tarzı: ince çizgi + beyaz yuvarlak tutamak
 
     signal moved(real v)      // sürüklerken (sınırlandırılmış)
     signal committed(real v)  // bırakınca
@@ -39,8 +40,10 @@ Item {
             radius: height / 2
             color: s.fillColor
             Behavior on color { ColorAnimation { duration: 500 } }
+            // Görünmezken ya da sürekli ilerleyen değerlerde (şarkı konumu) animasyon yok:
+            // her animasyon pencereyi saniyede 60 kez yeniden çizdirir
             Behavior on width {
-                enabled: !s.dragging
+                enabled: !s.dragging && s.smooth && s.visible
                 NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
             }
         }
