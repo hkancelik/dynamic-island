@@ -486,6 +486,11 @@ Window {
 
         // Kısayol (Meta+Alt+I) ile panel aç/kapat
         if (s.panelReq !== undefined && s.panelReq !== o.panelReq) panelOpen = !panelOpen
+        if (s.tabReq !== undefined && s.tabReq.seq !== o.tabReq.seq) {
+            tab = Math.max(0, Math.min(8, s.tabReq.tab))
+            if (s.tabReq.lyrics !== undefined) lyricsOn = s.tabReq.lyrics
+            panelOpen = true
+        }
 
         // Claude Code işini bitirdi
         if (s.agents !== undefined && o.agents !== undefined && s.agents.done.seq !== o.agents.done.seq) {

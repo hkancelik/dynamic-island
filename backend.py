@@ -89,6 +89,7 @@ class State:
             "shelf": [],
             "rec": {"state": "idle", "since": 0, "error": "", "last": ""},
             "panelReq": 0,
+            "tabReq": {"seq": 0},
         }
         self.kv = {k: 1 for k in self.data}  # anahtar -> son değiştiği sürüm
 
@@ -717,6 +718,12 @@ def execute(cmd, arg):
         if arg in urls and str(arg).startswith(("http://", "https://")):
             subprocess.Popen(["xdg-open", str(arg)], stdout=subprocess.DEVNULL,
                              stderr=subprocess.DEVNULL, start_new_session=True)
+    elif cmd == "open_tab" and isinstance(arg, dict):
+        # Paneli belirli bir sekmede aç (betikler / kısayollar için): {"tab": 0-8, "lyrics": bool}
+        req = {"seq": state.data["tabReq"]["seq"] + 1, "tab": int(arg.get("tab", 0))}
+        if "lyrics" in arg:
+            req["lyrics"] = bool(arg["lyrics"])
+        state.update("tabReq", req)
     elif cmd == "toggle_panel":
         state.update("panelReq", state.data["panelReq"] + 1)
     elif cmd == "stats_on" and stats:
