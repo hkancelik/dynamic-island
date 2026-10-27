@@ -69,7 +69,8 @@ def mtime():
 
 # -- Arayüz durumu (gizli mod, rahatsız etme): ayar dosyasından ayrı tutulur ----------
 UI_PATH = os.path.expanduser("~/.local/state/dynamic-island/ui.json")
-UI_DEFAULTS = {"hidden": False, "dnd": False}
+# focusDnd: Rahatsız Etme odak sayacı tarafından açıldı (arka uç kapanırsa açılışta geri alınır)
+UI_DEFAULTS = {"hidden": False, "dnd": False, "focusDnd": False}
 
 
 def load_ui():

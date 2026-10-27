@@ -551,6 +551,7 @@ def set_dnd(on):
     prev = ui["dnd"]
     if prev != on:
         ui["dnd"] = on
+        ui["focusDnd"] = on
         config.save_ui(ui)
         state.update("ui", dict(ui))
     return prev
@@ -589,6 +590,7 @@ def execute(cmd, arg):
             focus_timer.set_lengths(arg.get("work"), arg.get("brk"))
     elif cmd == "toggle_dnd":
         ui["dnd"] = not ui["dnd"]
+        ui["focusDnd"] = False
         config.save_ui(ui)
         state.update("ui", dict(ui))
     elif cmd == "wifi_toggle":
@@ -736,6 +738,9 @@ def main():
     except Exception as e:
         print("bildirim dinleyici başlatılamadı:", e, flush=True)
     refresh_volume()
+    if ui.get("focusDnd"):   # önceki çalışmada odak sayacı açık kalmıştı
+        ui["dnd"] = ui["focusDnd"] = False
+        config.save_ui(ui)
     state.update("ui", dict(ui))
     global brightness, power, night, fs_watch
     try:
