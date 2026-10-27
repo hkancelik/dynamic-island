@@ -38,6 +38,7 @@ import calendar_ics  # noqa: E402
 import caldav  # noqa: E402
 import config  # noqa: E402
 import focus  # noqa: E402
+import lyrics as lyrics_mod  # noqa: E402
 import controls  # noqa: E402
 import sysinfo  # noqa: E402
 from clipboard import Clipboard  # noqa: E402
@@ -477,6 +478,8 @@ class Mpris:
 
         if pick is None:
             state.update("media", {"active": False})
+            if lyrics:
+                lyrics.on_media({"active": False})
             return
         p = infos[pick]
         md = p.get("Metadata", {})
@@ -500,6 +503,8 @@ class Mpris:
             "canPrev": bool(p.get("CanGoPrevious", True)),
             "canSeek": bool(p.get("CanSeek", False)),
         })
+        if lyrics:
+            lyrics.on_media(state.data["media"])
 
     # -- komutlar
     def call(self, method, params=None, sig=None):
@@ -549,6 +554,7 @@ stats = None
 clip = None
 recorder = None
 focus_timer = None
+lyrics = None
 ui = config.load_ui()
 
 
@@ -588,6 +594,8 @@ def execute(cmd, arg):
         ui["hidden"] = (not ui["hidden"]) if cmd == "toggle_hide" else cmd == "hide"
         config.save_ui(ui)
         state.update("ui", dict(ui))
+    elif cmd == "lyrics_want" and lyrics:
+        lyrics.set_want(bool(arg))
     elif cmd.startswith("focus_") and focus_timer:
         if cmd == "focus_toggle":
             focus_timer.toggle()
@@ -765,7 +773,8 @@ def main():
     except Exception as e:
         print("Gece Işığı denetimi yok:", e, flush=True)
     refresh_audio()
-    global store, stats, clip, recorder, focus_timer
+    global store, stats, clip, recorder, focus_timer, lyrics
+    lyrics = lyrics_mod.Lyrics(lambda v: state.update("lyrics", v))
     fc = cfg.get("focus", {})
     focus_timer = focus.Focus(lambda v: state.update("focus", v), set_dnd,
                               fc.get("work", 25), fc.get("break", 5))

@@ -35,9 +35,16 @@ Item {
         }
     }
 
+    // Şarkı sözleri (Isle): solda küçük oynatıcı, sağda kayan sözler
+    Lyrics {
+        visible: sh.hasMedia && !page.outputs && sh.lyricsOn
+        anchors.fill: parent
+        sh: page.sh
+    }
+
     // Oynatıcı
     Item {
-        visible: sh.hasMedia && !page.outputs
+        visible: sh.hasMedia && !page.outputs && !sh.lyricsOn
         anchors.fill: parent
 
         ArtImage {
@@ -90,6 +97,12 @@ Item {
                     anchors.right: parent.right
                     anchors.top: parent.top
                     spacing: 2
+                    CtlButton {
+                        width: 28; height: 28; iconSize: 16
+                        icon: sh.ic("isle-lyrics")
+                        tint: Qt.rgba(1, 1, 1, 0.75)
+                        onClicked: sh.lyricsOn = true
+                    }
                     CtlButton {
                         width: 28; height: 28; iconSize: 16
                         icon: sh.ic("isle-output")
