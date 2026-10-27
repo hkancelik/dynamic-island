@@ -15,6 +15,8 @@ DEFAULTS = {
     # "password" alanına düz yazmak da olur ama secret-tool (KWallet) daha güvenli.
     # "calendars": ["Ev", "İş"] ile yalnızca bazı takvimler gösterilir (boş: hepsi).
     "caldav": [],
+    # Odak sayacı (Pomodoro) varsayılan süreleri, dakika
+    "focus": {"work": 25, "break": 5},
     # Adadan eklenen etkinliklerin gideceği takvimin adı (boş: ilk yazılabilir takvim)
     "caldav_default": "",
     # Uygulamalar sekmesindeki kısayollar (.desktop dosya kimlikleri)

@@ -37,6 +37,7 @@ import audio  # noqa: E402
 import calendar_ics  # noqa: E402
 import caldav  # noqa: E402
 import config  # noqa: E402
+import focus  # noqa: E402
 import controls  # noqa: E402
 import sysinfo  # noqa: E402
 from clipboard import Clipboard  # noqa: E402
@@ -538,12 +539,23 @@ store = None
 stats = None
 clip = None
 recorder = None
+focus_timer = None
 ui = config.load_ui()
 
 
 # --------------------------------------------------------------------------
 # Komutlar
 # --------------------------------------------------------------------------
+def set_dnd(on):
+    """Odak sayacı için: Rahatsız Etme'yi ayarla, önceki değeri döndür."""
+    prev = ui["dnd"]
+    if prev != on:
+        ui["dnd"] = on
+        config.save_ui(ui)
+        state.update("ui", dict(ui))
+    return prev
+
+
 def execute(cmd, arg):
     if cmd == "play_pause":
         mpris.call("PlayPause")
@@ -566,6 +578,15 @@ def execute(cmd, arg):
         ui["hidden"] = (not ui["hidden"]) if cmd == "toggle_hide" else cmd == "hide"
         config.save_ui(ui)
         state.update("ui", dict(ui))
+    elif cmd.startswith("focus_") and focus_timer:
+        if cmd == "focus_toggle":
+            focus_timer.toggle()
+        elif cmd == "focus_reset":
+            focus_timer.reset()
+        elif cmd == "focus_skip":
+            focus_timer.skip()
+        elif cmd == "focus_set" and isinstance(arg, dict):
+            focus_timer.set_lengths(arg.get("work"), arg.get("brk"))
     elif cmd == "toggle_dnd":
         ui["dnd"] = not ui["dnd"]
         config.save_ui(ui)
@@ -730,7 +751,10 @@ def main():
     except Exception as e:
         print("Gece Işığı denetimi yok:", e, flush=True)
     refresh_audio()
-    global store, stats, clip, recorder
+    global store, stats, clip, recorder, focus_timer
+    fc = cfg.get("focus", {})
+    focus_timer = focus.Focus(lambda v: state.update("focus", v), set_dnd,
+                              fc.get("work", 25), fc.get("break", 5))
     store = Store(lambda v: state.update("notes", v), lambda v: state.update("shelf", v))
     stats = sysinfo.Stats(lambda v: state.update("stats", v))
     recorder = Recorder(lambda v: state.update("rec", v))
