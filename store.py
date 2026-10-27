@@ -5,7 +5,7 @@ import subprocess
 import time
 from urllib.parse import unquote, urlparse
 
-from gi.repository import Gio
+from gi.repository import Gio, GLib
 
 PATH = os.path.expanduser("~/.local/share/dynamic-island/data.json")
 MAX_NOTES = 100
@@ -70,8 +70,16 @@ class Store:
         for n in self.notes:
             if n["id"] == nid:
                 n["done"] = not n["done"]
+                if n["done"]:
+                    # Isle gibi: işaretlenen anımsatıcı üstü çizili görünür, sonra gider
+                    GLib.timeout_add(1600, self._drop_if_done, nid)
         self._save()
         self._publish()
+
+    def _drop_if_done(self, nid):
+        if any(n["id"] == nid and n["done"] for n in self.notes):
+            self.delete_note(nid)
+        return False
 
     def delete_note(self, nid):
         self.notes = [n for n in self.notes if n["id"] != nid]

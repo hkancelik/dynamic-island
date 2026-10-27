@@ -8,7 +8,7 @@ Item {
     property var sh
     property int sub: 0
 
-    readonly property var names: ["Pano", "Notlar", "Raf"]
+    readonly property var names: ["Pano", "Anımsatıcı", "Raf"]
     readonly property var counts: [sh.clip.length, sh.notes.length, sh.shelf.length]
 
     ColumnLayout {
