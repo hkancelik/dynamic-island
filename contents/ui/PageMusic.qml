@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 
-// Müzik (Isle düzeni): solda kapak, sağda başlık, ilerleme ve kontroller.
+// Müzik: solda kapak, sağda başlık, ilerleme ve kontroller.
 // Sağ üstteki çıkış düğmesi ses seviyesi + çıkış listesine geçer.
 Item {
     id: page
@@ -35,7 +35,7 @@ Item {
         }
     }
 
-    // Şarkı sözleri (Isle): solda küçük oynatıcı, sağda kayan sözler
+    // Şarkı sözleri: solda küçük oynatıcı, sağda kayan sözler
     Lyrics {
         visible: sh.hasMedia && !page.outputs && sh.lyricsOn
         anchors.fill: parent

@@ -71,7 +71,7 @@ class Store:
             if n["id"] == nid:
                 n["done"] = not n["done"]
                 if n["done"]:
-                    # Isle gibi: işaretlenen anımsatıcı üstü çizili görünür, sonra gider
+                    # işaretlenen anımsatıcı üstü çizili görünür, sonra gider
                     GLib.timeout_add(1600, self._drop_if_done, nid)
         self._save()
         self._publish()

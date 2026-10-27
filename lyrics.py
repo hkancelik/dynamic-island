@@ -14,7 +14,7 @@ import urllib.parse
 import urllib.request
 
 API = "https://lrclib.net/api"
-UA = "dynamic-island/1.0 (KDE Plasma; github.com/zickrian/isle inspired)"
+UA = "dynamic-island/1.0 (KDE Plasma)"
 CACHE = os.path.expanduser("~/.cache/dynamic-island/lyrics")
 NOT_FOUND_RETRY = 7 * 86400
 DURATION_TOLERANCE = 3        # saniye: arama sonucunun süresi bu kadar farklı olabilir

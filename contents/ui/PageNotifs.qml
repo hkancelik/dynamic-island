@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 
-// Bildirimler (Isle düzeni): başlık + Temizle, altta tek satırlık bildirim listesi.
+// Bildirimler: başlık + Temizle, altta tek satırlık bildirim listesi.
 Item {
     id: page
 

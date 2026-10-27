@@ -12,7 +12,7 @@ Item {
     property int barHeight: 8
     property bool interactive: true
     property bool knob: false
-    property bool smooth: true     // değer değişince dolgu kaysın mı      // Isle tarzı: ince çizgi + beyaz yuvarlak tutamak
+    property bool smooth: true     // değer değişince dolgu kaysın mı      // ince çizgi + beyaz yuvarlak tutamak
 
     signal moved(real v)      // sürüklerken (sınırlandırılmış)
     signal committed(real v)  // bırakınca

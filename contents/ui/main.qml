@@ -166,7 +166,7 @@ Window {
         return "idle"
     }
 
-    // Kapalı ada (Isle): [sol yuva] saat [sağ yuva]. Saat ortada kalsın diye iki yuva eşit genişlikte.
+    // Kapalı ada: [sol yuva] saat [sağ yuva]. Saat ortada kalsın diye iki yuva eşit genişlikte.
     readonly property string leftSlot: rec.state !== "idle" ? "rec" : hasMedia ? "art" : focusOn ? "ring" : unread > 0 ? "dot" : ""
     readonly property string rightText: rec.state === "recording" ? fmt(secTick - rec.since)
                                       : rec.state !== "idle" ? "" : focusOn ? mmss(focusLeft) : ""
@@ -180,7 +180,7 @@ Window {
     }
     readonly property int idleW: 32 + 2 * slotW + 20 + 46
 
-    // Açık panel: geniş ve alçak (Isle ölçüleri). Başlık 40 + sayfa 150 + alt boşluk 14.
+    // Açık panel: geniş ve alçak. Başlık 40 + sayfa 150 + alt boşluk 14.
     readonly property real panelScale: 1
     readonly property int panelW: lyricsWant ? 760 : 600
     readonly property int panelH: 212
@@ -322,7 +322,7 @@ Window {
         return "speaker"
     }
 
-    // Isle'nin tek renk ikonları (contents/icons)
+    // Tek renk ikonlar (contents/icons)
     function ic(n) { return Qt.resolvedUrl("../icons/" + n + ".svg") }
 
     function baseName(p) { return String(p).split("/").pop() }
@@ -790,7 +790,7 @@ Window {
             Behavior on scale { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
         }
 
-        // Müzik çubukları (Isle): beyaz, duraklayınca soluk. Saniyede 10 adım: sürekli
+        // Müzik çubukları: beyaz, duraklayınca soluk. Saniyede 10 adım: sürekli
         // animasyon pencereyi saniyede 60 kez çizdirir (~%13 işlemci), adımlı hali çok daha hafif.
         component Bars: Row {
             id: bars
@@ -1264,7 +1264,7 @@ Window {
                     }
                 }
             }
-            // Turuncu alt ışık (Isle): adanın yuvarlak alt köşelerine uyar
+            // Turuncu alt ışık: adanın yuvarlak alt köşelerine uyar
             Item {
                 anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                 height: 26
@@ -1313,7 +1313,7 @@ Window {
                         : ""
                 value: alertView.a.kind === "bt" && alertView.a.connected && alertView.a.battery >= 0 ? alertView.a.battery + "%" : ""
 
-                // Caps Lock durumu: renkli hap (Isle)
+                // Caps Lock durumu: renkli hap
                 Rectangle {
                     visible: alertView.a.kind === "caps"
                     width: capsText.implicitWidth + 20; height: 24; radius: 12
@@ -1408,7 +1408,7 @@ Window {
                             { icon: root.ic("isle-shelf"), label: "Araçlar" }
                         ]
                         // Seçili sekme etiketiyle birlikte hap; diğerleri yalnızca ikon
-                        // Seçili sekmenin genişliği etiketine göre (Isle: 10 px iç boşluk, 6 px ikon arası)
+                        // Seçili sekmenin genişliği etiketine göre (10 px iç boşluk, 6 px ikon arası)
                         readonly property var labelW: [42, 52, 34, 46, 50, 62, 44, 50]
                         // Ayarlar (8) bir sekme değil: o açıkken hiçbir sekme seçili görünmez
                         readonly property real selW: root.tab < 8 ? 20 + 16 + 6 + labelW[root.tab] : otherW
@@ -1539,7 +1539,7 @@ Window {
                     }
                 }
 
-                // Sayfalar (Isle: 150 px yükseklik, kenarlardan 28 px)
+                // Sayfalar (150 px yükseklik, kenarlardan 28 px)
                 Item {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 150

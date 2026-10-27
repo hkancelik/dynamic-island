@@ -1,7 +1,6 @@
 # Dynamic Island (KDE Plasma)
 
-KDE Plasma 6 (Wayland) için ekranın üstünde duran, Apple'ın Dynamic Island'ından ve
-[Isle](https://github.com/zickrian/isle)'ın tasarımından esinlenen bir ada.
+KDE Plasma 6 (Wayland) için ekranın üstünde duran, Apple'ın Dynamic Island'ından esinlenen bir ada.
 
 - **Müzik:** MPRIS oynatıcıları, kapak, ilerleme, ses çıkışı seçimi
 - **Senkron şarkı sözleri:** [LRCLIB](https://lrclib.net)'ten; söylenen satır parlak, satıra tıkla → oraya atla.
@@ -9,7 +8,7 @@ KDE Plasma 6 (Wayland) için ekranın üstünde duran, Apple'ın Dynamic Island'
 - **Odak (Pomodoro):** halka + kalan süre, odak/mola süreleri; odakta Rahatsız Etme açılır,
   süre kapalı adada da görünür
 - **Kapalı ada:** saat ortada; solda kapak / odak halkası / kayıt noktası, sağda müzik çubukları ve odak süresi.
-  Ses, şarj, bildirim ve uyarılar Isle tarzı kısa görünümlerle
+  Ses, şarj, bildirim ve uyarılar kısa görünümlerle
 - **Bildirimler:** Plasma bildirimleri adada toplanır, Rahatsız Etme
 - **Takvim:** iCal/.ics adresleri ve CalDAV (Apple iCloud), adadan etkinlik ekleme
 - **Kontrol:** ses, her ekranın ayrı parlaklığı (DDC/CI), Gece Işığı, Wi-Fi, Bluetooth, güç profili
@@ -60,4 +59,4 @@ Gerekenler: `qml6`, `layer-shell-qt`, Kirigami, Python 3 (PyGObject, dbus-python
 - `backend.py`: durum + komut sunucusu (127.0.0.1:47615), MPRIS, ses, ağ, takvim, bildirimler
 - `caldav.py`, `calendar_ics.py`: bağımlılıksız CalDAV istemcisi ve iCalendar okuyucu
 - `contents/ui/`: QML arayüz (`main.qml` ada ve panel, `Page*.qml` sekmeler)
-- `contents/icons/`: [Isle](https://github.com/zickrian/isle)'ın ikonları (GPL-3.0, bkz. `contents/icons/LICENSE-isle-GPL3.txt`)
+- `contents/icons/`: ikonlar Isle projesinden (GPL-3.0, bkz. `contents/icons/LICENSE-isle-GPL3.txt`)

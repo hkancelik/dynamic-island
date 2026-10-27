@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// Pano geçmişi (Isle düzeni): arama, sabitleme; öğeye tıkla → panoya geri konur.
+// Pano geçmişi: arama, sabitleme; öğeye tıkla → panoya geri konur.
 Item {
     id: page
 

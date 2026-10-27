@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Shapes
 
-// Kapalı adadaki kısa uyarı satırı (Isle "peek"): renkli yuvarlak rozet (isteğe bağlı seviye
+// Kapalı adadaki kısa uyarı satırı: renkli yuvarlak rozet (isteğe bağlı seviye
 // halkasıyla), başlık + alt yazı, sağda değer ya da ek içerik (trailing).
 RowLayout {
     id: row
@@ -54,7 +54,7 @@ RowLayout {
             height: width
             radius: width / 2
             color: row.badgeColor
-            Rectangle {   // üstte ince ışık çizgisi (Isle)
+            Rectangle {   // üstte ince ışık çizgisi
                 anchors.fill: parent
                 radius: parent.radius
                 color: "transparent"

@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 
-// Takvim (Isle düzeni): solda ay, sağda seçili günün etkinlikleri.
+// Takvim: solda ay, sağda seçili günün etkinlikleri.
 Item {
     id: page
 
@@ -172,7 +172,7 @@ Item {
                 elide: Text.ElideRight
             }
 
-            // Hızlı ekleme (Isle): "Akşam yemeği 20:00" → seçili güne
+            // Hızlı ekleme: "Akşam yemeği 20:00" → seçili güne
             TextField {
                 id: addField
                 visible: sh.cal.writable === true
@@ -217,7 +217,7 @@ Item {
                 spacing: 3
                 boundsBehavior: Flickable.StopAtBounds
                 model: page.dayEvents
-                // Kaydırılabilir kenar kesilmek yerine solar (Isle)
+                // Kaydırılabilir kenar kesilmek yerine solar
                 Rectangle {
                     z: 2
                     visible: !evList.atYEnd

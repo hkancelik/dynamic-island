@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 
-// Senkron şarkı sözleri (Isle düzeni): solda küçük oynatıcı, sağda sözler.
+// Senkron şarkı sözleri: solda küçük oynatıcı, sağda sözler.
 // Söylenen satır büyük ve parlak, gelenler mesafeyle solar, söylenenler soluk;
 // sözsüz aralar nefes alan üç nokta. Satıra tıkla: şarkı oraya atlar.
 Item {
@@ -12,7 +12,7 @@ Item {
     readonly property var lyr: sh.lyr
     readonly property var lines: lyr.lines || []
     readonly property bool synced: lyr.status === "synced"
-    readonly property int ahead: 250      // satır biraz erken yansın (Isle gibi)
+    readonly property int ahead: 250      // satır biraz erken yansın
 
     // Şu anki satır: başlangıcı geçmiş en son satır (ikili arama)
     readonly property int cur: {

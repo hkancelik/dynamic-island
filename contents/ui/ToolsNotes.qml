@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// Anımsatıcılar (Isle): turuncu başlık ve sayı, halkalı satırlar; işaretlenen
+// Anımsatıcılar: turuncu başlık ve sayı, halkalı satırlar; işaretlenen
 // üstü çizilir ve kısa süre sonra gider. Altta yeni anımsatıcı alanı.
 Item {
     id: page

@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Shapes
 
-// Odak (Isle düzeni): solda kalan süre halkası, ortada odak/mola süreleri, sağda başlat ve sıfırla.
+// Odak: solda kalan süre halkası, ortada odak/mola süreleri, sağda başlat ve sıfırla.
 Item {
     id: page
 
@@ -100,7 +100,7 @@ Item {
                     }
                 }
             }
-            // Isle: başlangıç noktası
+            // başlangıç noktası
             Rectangle {
                 visible: page.idle
                 x: 62 - 3; y: 4 - 3 + 0.5
