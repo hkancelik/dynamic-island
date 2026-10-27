@@ -82,6 +82,9 @@ Window {
     property bool lyricsOn: false
     // Gizlilik: kamera / mikrofon / ekran paylaşımını kullanan uygulamalar
     property var priv: ({ camera: [], mic: [], screen: [] })
+    // Claude Code: bekleyen izin istekleri (en eskisi önce) ve son "bitti" haberi
+    property var agents: ({ asks: [], done: { seq: 0 } })
+    readonly property var ask: agents.asks.length > 0 ? agents.asks[0] : null
     // Son sistem uyarısı (Caps Lock, Bluetooth, internet)
     property var alertD: ({ kind: "", seq: 0 })
     readonly property var privDots: {
@@ -148,6 +151,7 @@ Window {
     readonly property string mode: {
         if (panelOpen) return "panel"
         if (dropHover) return "drop"
+        if (ask !== null) return "ask"
         if (flashKind === "notif" || flashKind === "event") return "banner"
         if (flashKind === "toast") return "toast"
         if (flashKind === "alert") return "alert"
@@ -186,6 +190,7 @@ Window {
         case "volume": return 300
         case "charge": return 300
         case "alert": return 330
+        case "ask": return 480
         default: return idleW
         }
     }
@@ -201,6 +206,7 @@ Window {
         case "volume": return 52
         case "charge": return 56
         case "alert": return 56
+        case "ask": return 132
         default: return 32
         }
     }
@@ -411,6 +417,7 @@ Window {
         var k = banner.kind
         flashKind = ""
         if (k === "record") { send("open_recording"); return }
+        if (k === "agent") return
         tab = k === "event" ? 3 : 1
         panelOpen = true
     }
@@ -443,6 +450,7 @@ Window {
         if (s.lyrics !== undefined) lyr = s.lyrics
         if (s.privacy !== undefined) priv = s.privacy
         if (s.alert !== undefined) alertD = s.alert
+        if (s.agents !== undefined) agents = s.agents
         if (s.calendar !== undefined) { cal = s.calendar; updateNext() }
         if (s.calAdd !== undefined && s.calAdd.seq !== calAddSeq) {
             if (calAddSeq >= 0) toast(s.calAdd.ok ? "Eklendi · " + s.calAdd.msg : "Eklenemedi: " + s.calAdd.msg,
@@ -472,6 +480,15 @@ Window {
 
         // Kısayol (Meta+Alt+I) ile panel aç/kapat
         if (s.panelReq !== undefined && s.panelReq !== o.panelReq) panelOpen = !panelOpen
+
+        // Claude Code işini bitirdi
+        if (s.agents !== undefined && o.agents !== undefined && s.agents.done.seq !== o.agents.done.seq) {
+            var dn = s.agents.done
+            banner = { kind: "agent", icon: ic("isle-claude"), app: "Claude Code",
+                       title: (dn.project ? dn.project + " · " : "") + "Claude Code bitirdi",
+                       body: dn.message || "", ts: Date.now() }
+            if (!panelOpen) flash("notif", 7000)
+        }
 
         // Sistem uyarısı (bildirim/etkinlik gösterilirken araya girmez)
         if (s.alert !== undefined && (o.alert === undefined || s.alert.seq !== o.alert.seq)
@@ -1111,6 +1128,139 @@ Window {
                     : root.ic("isle-check-symbolic")
                 badgeColor: root.toastIcon === "chronometer" ? root.focusColor : toastView.bad ? "#ff453a" : "#30d158"
                 title: root.toastText
+            }
+        }
+
+        // ==============================================================
+        // CLAUDE CODE İZİN İSTEĞİ: Reddet / İzin ver / Her zaman
+        // ==============================================================
+        View {
+            id: askView
+            on: root.mode === "ask"
+            width: 480; height: 132
+            readonly property var a: root.ask || ({})
+
+            Item {
+                x: 20; y: 16
+                width: 40; height: 40
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 20
+                    color: "#2a1c16"
+                    border.width: 1
+                    border.color: Qt.rgba(1, 1, 1, 0.08)
+                }
+                Image {
+                    anchors.centerIn: parent
+                    width: 22; height: 22
+                    sourceSize: Qt.size(44, 44)
+                    source: root.ic("isle-claude")
+                }
+                Rectangle {   // bekleyen başka istek varsa sayısı
+                    visible: root.agents.asks.length > 1
+                    x: 26; y: -4
+                    width: 18; height: 18; radius: 9
+                    color: "#ff9f0a"
+                    Text {
+                        anchors.centerIn: parent
+                        text: root.agents.asks.length
+                        color: "black"
+                        font.family: "Inter"
+                        font.pixelSize: 10
+                        font.weight: Font.Bold
+                    }
+                }
+            }
+            Column {
+                x: 74; y: 14
+                width: parent.width - 74 - 20
+                spacing: 6
+                Column {
+                    width: parent.width
+                    spacing: 1
+                    Text {
+                        renderType: Text.CurveRendering
+                        font.family: "Inter"
+                        width: parent.width
+                        text: (askView.a.project || "Claude Code") + " izin istiyor"
+                        color: "white"
+                        font.pixelSize: 14
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                    }
+                    Text {
+                        renderType: Text.CurveRendering
+                        font.family: "Inter"
+                        width: parent.width
+                        text: "Claude Code · " + (askView.a.tool || "")
+                        color: Qt.rgba(1, 1, 1, 0.5)
+                        font.pixelSize: 12
+                        elide: Text.ElideRight
+                    }
+                }
+                Rectangle {
+                    width: Math.min(parent.width, cmdText.implicitWidth + 18)
+                    height: 26
+                    radius: 8
+                    color: Qt.rgba(1, 1, 1, 0.08)
+                    Text {
+                        id: cmdText
+                        x: 9
+                        width: parent.width - 18
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: askView.a.input || ""
+                        color: Qt.rgba(1, 1, 1, 0.9)
+                        font.family: "monospace"
+                        font.pixelSize: 12
+                        elide: Text.ElideMiddle
+                    }
+                }
+                Row {
+                    spacing: 8
+                    Repeater {
+                        model: askView.a.always ? ["deny", "allow", "always"] : ["deny", "allow"]
+                        Rectangle {
+                            required property string modelData
+                            readonly property bool primary: modelData === (askView.a.always ? "always" : "allow")
+                            width: lbl.implicitWidth + 28
+                            height: 28; radius: 14
+                            color: primary ? (bMa.pressed ? "#d1d1d6" : "white")
+                                           : (bMa.pressed ? "#48484a" : bMa.containsMouse ? "#3a3a3c" : "#2c2c2e")
+                            Text {
+                                id: lbl
+                                renderType: Text.CurveRendering
+                                font.family: "Inter"
+                                anchors.centerIn: parent
+                                text: modelData === "deny" ? "Reddet" : modelData === "allow" ? "İzin ver" : "Her zaman"
+                                color: parent.primary ? "black" : "white"
+                                font.pixelSize: 12
+                                font.weight: Font.DemiBold
+                            }
+                            MouseArea {
+                                id: bMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: root.send("agent_answer", { id: askView.a.id, answer: modelData })
+                            }
+                        }
+                    }
+                }
+            }
+            // Turuncu alt ışık (Isle): adanın yuvarlak alt köşelerine uyar
+            Item {
+                anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                height: 26
+                clip: true
+                Rectangle {
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                    height: 56
+                    radius: 28
+                    opacity: 0.5
+                    gradient: Gradient {
+                        GradientStop { position: 0.5; color: "transparent" }
+                        GradientStop { position: 1; color: "#5a2a08" }
+                    }
+                }
             }
         }
 

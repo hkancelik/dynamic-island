@@ -16,6 +16,14 @@ KDE Plasma 6 (Wayland) için ekranın üstünde duran, Apple'ın Dynamic Island'
 - **Uygulamalar, Sistem (CPU, bellek, ağ, sıcaklık, pil), Araçlar (pano, notlar, dosya rafı)**
 - Ada ana ekranda durur; ekran çıkarılınca diğer ekrana geçer
 
+- **Claude Code onayları:** izin istekleri adada (Reddet / İzin ver / Her zaman), iş bitince haber.
+  Kurulum: `./install-claude-hooks.sh` (kaldırma: `--remove`). Ada kapalıysa ya da cevap gelmezse
+  Claude Code terminalde her zamanki gibi sorar; terminalden cevaplanınca adadaki soru kalkar
+- **Gizlilik noktaları:** kamera (yeşil), mikrofon (turuncu), ekran paylaşımı (mavi)
+- **Uyarılar:** Caps Lock, Bluetooth cihazı (pil yüzdesiyle), internet kesildi/bağlandı,
+  toplantıdan 5 dk önce ("Katıl" ile: Meet, Zoom, Teams, Webex)
+- **Anımsatıcılar:** Araçlar → Anımsatıcı (yerel; Apple'ın yeni Anımsatıcılar'ı CalDAV'dan erişilemiyor)
+
 ## Çalıştırma
 
 ```bash
