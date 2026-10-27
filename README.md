@@ -24,6 +24,10 @@ KDE Plasma 6 (Wayland) için ekranın üstünde duran, Apple'ın Dynamic Island'
   toplantıdan 5 dk önce ("Katıl" ile: Meet, Zoom, Teams, Webex)
 - **Anımsatıcılar:** Araçlar → Anımsatıcı (yerel; Apple'ın yeni Anımsatıcılar'ı CalDAV'dan erişilemiyor)
 
+- **Ayarlar:** saatin yanındaki dişli. Plasma bildirim pencereleri, tam ekranda gizle, pano geçmişi,
+  şarkı sözleri, toplantı uyarısı, gizlilik noktaları, Claude Code onaylarını kur/kaldır
+- **Pano:** arama (Enter ilk sonucu kopyalar), sabitleme (Temizle sabitlenenleri silmez)
+
 ## Çalıştırma
 
 ```bash

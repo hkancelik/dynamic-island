@@ -35,6 +35,7 @@ class Clipboard:
     def __init__(self, on_update):
         self.on_update = on_update
         self.items = []          # en yeni başta: {"id", "text"}
+        self.enabled = True      # Ayarlar'dan kapatılınca yeni kopyalar kaydedilmez
         self.counter = 0
         self.sock = None
         self.lock = threading.Lock()
@@ -209,6 +210,8 @@ class Clipboard:
 
     # -- geçmiş
     def _add(self, text):
+        if not self.enabled:
+            return
         old = next((i for i in self.items if i["text"] == text), None)
         self.items = [i for i in self.items if i["text"] != text]    # aynıysa üste taşı
         self.counter += 1
