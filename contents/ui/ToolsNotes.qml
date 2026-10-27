@@ -2,44 +2,44 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// Hızlı notlar / yapılacaklar.
+// Anımsatıcılar (Isle): turuncu başlık ve sayı, halkalı satırlar; işaretlenen
+// üstü çizilir ve kısa süre sonra gider. Altta yeni anımsatıcı alanı.
 Item {
     id: page
 
     property var sh
-    readonly property int doneCount: {
+    readonly property color orange: "#ff9f0a"
+    readonly property int open: {
         var n = 0
-        for (var i = 0; i < sh.notes.length; i++) if (sh.notes[i].done) n++
+        for (var i = 0; i < sh.notes.length; i++) if (!sh.notes[i].done) n++
         return n
     }
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 8
+        spacing: 4
 
-        TextField {
-            id: input
+        RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 38
-            placeholderText: "Yeni not ekle ve Enter'a bas…"
-            placeholderTextColor: "#8e8e93"
-            color: "white"
-            font.pixelSize: 13
-            leftPadding: 14
-            rightPadding: 14
-            selectByMouse: true
-            maximumLength: 500
-            background: Rectangle {
-                radius: 19
-                color: "#1c1c1e"
-                border.width: input.activeFocus ? 1.5 : 0
-                border.color: sh.accent
+            Layout.preferredHeight: 18
+            Text {
+                renderType: Text.CurveRendering
+                font.family: "Inter"
+                text: "Anımsatıcılar"
+                color: page.orange
+                font.pixelSize: 12
+                font.weight: Font.DemiBold
             }
-            onAccepted: {
-                if (text.trim().length > 0) {
-                    sh.send("note_add", text)
-                    text = ""
-                }
+            Item { Layout.fillWidth: true }
+            Text {
+                renderType: Text.CurveRendering
+                font.family: "Inter"
+                visible: page.open > 0
+                text: page.open
+                color: page.orange
+                font.pixelSize: 12
+                font.weight: Font.DemiBold
+                font.features: { "tnum": 1 }
             }
         }
 
@@ -48,109 +48,116 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             model: sh.notes
-            spacing: 6
+            spacing: 0
             clip: true
             boundsBehavior: Flickable.StopAtBounds
+            remove: Transition { NumberAnimation { property: "opacity"; to: 0; duration: 200 } }
+            displaced: Transition { NumberAnimation { properties: "y"; duration: 200; easing.type: Easing.OutCubic } }
 
-            delegate: Rectangle {
+            delegate: Item {
+                id: row
                 required property var modelData
                 width: list.width
-                height: Math.max(42, label.implicitHeight + 20)
-                radius: 14
-                color: "#1c1c1e"
+                height: Math.max(30, label.implicitHeight + 12)
 
-                // Tamamlandı işareti
+                // Halka: işaretlenince turuncu, içinde nokta
                 Rectangle {
-                    x: 12
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 22; height: 22; radius: 11
-                    color: modelData.done ? sh.accent : "transparent"
-                    border.width: modelData.done ? 0 : 1.5
-                    border.color: "#8e8e93"
-                    Behavior on color { ColorAnimation { duration: 140 } }
-                    Ico {
+                    x: 0
+                    y: 6
+                    width: 18; height: 18; radius: 9
+                    color: "transparent"
+                    border.width: 1.5
+                    border.color: row.modelData.done ? page.orange : Qt.rgba(1, 1, 1, 0.35)
+                    Rectangle {
                         anchors.centerIn: parent
-                        visible: modelData.done
-                        source: "task-complete"
-                        size: 14
-                        tint: "#000000"
+                        width: 10; height: 10; radius: 5
+                        color: page.orange
+                        scale: row.modelData.done ? 1 : 0
+                        Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutBack } }
                     }
                     MouseArea {
                         anchors.fill: parent
                         anchors.margins: -6
-                        onClicked: sh.send("note_toggle", modelData.id)
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: sh.send("note_toggle", row.modelData.id)
                     }
                 }
                 Text {
+                    id: label
                     renderType: Text.CurveRendering
                     font.family: "Inter"
-                    id: label
-                    x: 44
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width - 44 - 36
-                    text: modelData.text
-                    color: modelData.done ? "#8e8e93" : "white"
+                    x: 30
+                    y: 6
+                    width: parent.width - 30 - 28
+                    text: row.modelData.text
+                    color: row.modelData.done ? Qt.rgba(1, 1, 1, 0.45) : "white"
                     font.pixelSize: 13
-                    font.strikeout: modelData.done
+                    font.strikeout: row.modelData.done
                     wrapMode: Text.Wrap
-                    maximumLineCount: 3
-                    elide: Text.ElideRight
+                    lineHeight: 1.1
                 }
+                // İnce ayırıcı: yazının altından kenara
                 Rectangle {
+                    x: 30
+                    anchors.bottom: parent.bottom
+                    width: parent.width - 30
+                    height: 1
+                    color: Qt.rgba(1, 1, 1, 0.07)
+                }
+                // Üzerine gelince sil
+                HoverHandler { id: hov }
+                CtlButton {
+                    visible: hov.hovered
                     anchors.right: parent.right
-                    anchors.rightMargin: 8
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 22; height: 22; radius: 11
-                    color: xMa.containsMouse ? "#3a3a3c" : "transparent"
-                    Ico { anchors.centerIn: parent; source: "window-close"; size: 11; tint: "#8e8e93" }
-                    MouseArea {
-                        id: xMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: sh.send("note_del", modelData.id)
-                    }
+                    y: 4
+                    width: 22; height: 22; iconSize: 10
+                    icon: sh.ic("isle-close-symbolic")
+                    tint: Qt.rgba(1, 1, 1, 0.7)
+                    onClicked: sh.send("note_del", row.modelData.id)
                 }
             }
         }
 
-        Text {
-
-            renderType: Text.CurveRendering
-
+        // Yeni anımsatıcı
+        TextField {
+            id: input
+            Layout.fillWidth: true
+            Layout.preferredHeight: 28
+            placeholderText: "Yeni anımsatıcı"
+            placeholderTextColor: Qt.rgba(1, 1, 1, 0.4)
+            color: "white"
             font.family: "Inter"
-            visible: page.doneCount > 0
-            Layout.alignment: Qt.AlignHCenter
-            text: "Biten " + page.doneCount + " notu temizle"
-            color: doneMa.containsMouse ? "white" : sh.accent
-            font.pixelSize: 11
-            font.weight: Font.Medium
-            MouseArea {
-                id: doneMa
-                anchors.fill: parent
-                anchors.margins: -6
-                hoverEnabled: true
-                onClicked: sh.send("note_clear_done")
+            font.pixelSize: 13
+            leftPadding: 30
+            rightPadding: 8
+            selectByMouse: true
+            maximumLength: 500
+            background: Item {
+                Ico {
+                    x: 3
+                    anchors.verticalCenter: parent.verticalCenter
+                    source: sh.ic("isle-plus-symbolic")
+                    size: 12
+                    tint: Qt.rgba(1, 1, 1, 0.5)
+                }
+            }
+            onAccepted: {
+                if (text.trim().length > 0) {
+                    sh.send("note_add", text)
+                    text = ""
+                }
             }
         }
     }
 
-    Column {
+    Text {
+        renderType: Text.CurveRendering
+        font.family: "Inter"
         visible: sh.notes.length === 0
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: 110
-        spacing: 8
-        Ico {
-            anchors.horizontalCenter: parent.horizontalCenter
-            source: "document-edit"
-            size: 30
-            tint: "#6c6c70"
-        }
-        Text {
-            renderType: Text.CurveRendering
-            font.family: "Inter"
-            text: "Henüz not yok"
-            color: "#8e8e93"
-            font.pixelSize: 12
-        }
+        anchors.centerIn: parent
+        text: "Anımsatıcı yok"
+        color: Qt.rgba(1, 1, 1, 0.55)
+        font.pixelSize: 13
+        font.weight: Font.DemiBold
     }
 }
