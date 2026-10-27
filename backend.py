@@ -177,6 +177,14 @@ def volume_refresher():
         refresh_audio()
 
 
+def _die_with_parent():
+    """Alt süreç, arka uç kapanınca (çökse bile) onunla birlikte kapansın.
+    Yoksa her yeniden başlatmada bir `pactl subscribe` artar ve PipeWire'ın
+    istemci sınırı dolunca ses olayları hiç gelmez."""
+    import ctypes
+    ctypes.CDLL("libc.so.6", use_errno=True).prctl(1, signal.SIGTERM)   # PR_SET_PDEATHSIG
+
+
 def volume_watcher():
     threading.Thread(target=volume_refresher, daemon=True).start()
     while True:
@@ -186,6 +194,7 @@ def volume_watcher():
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
                 text=True,
+                preexec_fn=_die_with_parent,
             )
             for line in p.stdout:
                 if "sink" in line and "server" not in line:

@@ -140,8 +140,13 @@ Window {
         return "idle"
     }
 
-    // Boşta (hap) genişliği: ada büyürken boşta içeriği bu ölçüde, üstte sabit kalır
-    readonly property int idleW: (hasMedia ? 210 : (unread > 0 ? 200 : 176)) + (rec.state !== "idle" ? 70 : 0)
+    // Kapalı ada (Isle): [sol yuva] saat [sağ yuva]. Saat ortada kalsın diye iki yuva eşit genişlikte.
+    readonly property string leftSlot: rec.state !== "idle" ? "rec" : hasMedia ? "art" : focusOn ? "ring" : unread > 0 ? "dot" : ""
+    readonly property string rightText: rec.state === "recording" ? fmt(secTick - rec.since)
+                                      : rec.state !== "idle" ? "" : focusOn ? mmss(focusLeft) : ""
+    readonly property bool rightBars: hasMedia && rec.state === "idle"
+    readonly property int slotW: Math.max(24, (rightBars ? 18 : 0) + (rightText !== "" ? 44 + (rightBars ? 6 : 0) : 0))
+    readonly property int idleW: 32 + 2 * slotW + 20 + 46
 
     // Açık panel: geniş ve alçak (Isle ölçüleri). Başlık 40 + sayfa 150 + alt boşluk 14.
     readonly property real panelScale: 1
@@ -151,12 +156,12 @@ Window {
     readonly property int islandW: {
         switch (mode) {
         case "panel": return panelW
-        case "drop": return 320
-        case "toast": return 280
-        case "banner": return 400
-        case "media": return 380
-        case "volume": return 270
-        case "charge": return 250
+        case "drop": return 300
+        case "toast": return Math.min(420, Math.max(260, toastMeasure.implicitWidth + 32 + 10 + 40))
+        case "banner": return 440
+        case "media": return 400
+        case "volume": return 300
+        case "charge": return 300
         default: return idleW
         }
     }
@@ -165,13 +170,13 @@ Window {
         // Tüm sekmelerde aynı yükseklik. Müzik çalarken Ana sayfa medya kartı + her ek ekran için
         // bir parlaklık satırı kadar uzar; çalmıyorken en uzun sayfanın (Sistem) sığdığı boy.
         case "panel": return panelH
-        case "drop": return 78
-        case "toast": return 46
-        case "banner": return 80
-        case "media": return 92
-        case "volume": return 46
-        case "charge": return 46
-        default: return 36
+        case "drop": return 56
+        case "toast": return 52
+        case "banner": return 64
+        case "media": return 84
+        case "volume": return 52
+        case "charge": return 56
+        default: return 32
         }
     }
 
@@ -199,6 +204,11 @@ Window {
     function fmt(ms) {
         var s = Math.max(0, Math.floor(ms / 1000))
         return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0")
+    }
+
+    function mmss(ms) {
+        var t = Math.ceil(ms / 1000)
+        return String(Math.floor(t / 60)).padStart(2, "0") + ":" + String(t % 60).padStart(2, "0")
     }
 
     function clockOf(ms) {
@@ -686,275 +696,219 @@ Window {
             }
         }
 
-        // ==============================================================
-        // BOŞTA
-        // ==============================================================
-        Item {
-            id: idleView
-            readonly property bool on: root.mode === "idle"
-            width: root.idleW
-            height: 36
+        // Görünüm geçişi: ada büyürken içerik hafif gecikmeyle belirir
+        component View: Item {
+            id: v
+            property bool on: false
             anchors.top: parent.top
             anchors.horizontalCenter: parent.horizontalCenter
             opacity: on ? 1 : 0
             visible: opacity > 0
             Behavior on opacity {
                 SequentialAnimation {
-                    PauseAnimation { duration: idleView.on ? 80 : 0 }
-                    NumberAnimation { duration: idleView.on ? 220 : 90; easing.type: Easing.OutCubic }
+                    PauseAnimation { duration: v.on ? 90 : 0 }
+                    NumberAnimation { duration: v.on ? 220 : 80; easing.type: Easing.OutCubic }
                 }
             }
             transformOrigin: Item.Top
-            scale: on ? 1 : 0.95
+            scale: on ? 1 : 0.94
             Behavior on scale { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
+        }
 
-            Text {
-
-                renderType: Text.CurveRendering
-
-                font.family: "Inter"
-                visible: !root.hasMedia
-                anchors.left: parent.left
-                anchors.leftMargin: 16
-                anchors.verticalCenter: parent.verticalCenter
-                text: root.clock
-                color: "white"
-                font.pixelSize: 13
-                font.weight: Font.DemiBold
-            }
-            // Ekran kaydı sürerken: yanıp sönen kırmızı nokta + süre
-            Row {
-                visible: root.rec.state !== "idle"
-                anchors.left: parent.left
-                anchors.leftMargin: root.hasMedia ? 44 : 62
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 6
+        // Müzik çubukları (Isle): beyaz, duraklayınca soluk
+        component Bars: Row {
+            id: bars
+            property bool live: true
+            spacing: 2
+            opacity: root.playing ? 1 : 0.43
+            Repeater {
+                model: 4
                 Rectangle {
+                    required property int index
+                    width: 3
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 9; height: 9; radius: 4.5
-                    color: "#ff453a"
-                    SequentialAnimation on opacity {
-                        running: root.rec.state !== "idle" && idleView.on
-                        loops: Animation.Infinite
-                        NumberAnimation { to: 0.25; duration: 650 }
-                        NumberAnimation { to: 1; duration: 650 }
-                    }
-                }
-                Text {
-                    renderType: Text.CurveRendering
-                    font.family: "Inter"
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: root.rec.state === "recording" ? root.fmt(root.secTick - root.rec.since)
-                        : root.rec.state === "saving" ? "Kaydediliyor" : "Başlıyor"
+                    radius: 1.5
+                    height: 4
                     color: "white"
-                    font.pixelSize: 12
-                    font.weight: Font.DemiBold
-                }
-            }
-            ArtImage {
-                visible: root.hasMedia
-                width: 22; height: 22; radius: 7
-                anchors.left: parent.left
-                anchors.leftMargin: 10
-                anchors.verticalCenter: parent.verticalCenter
-                source: root.media.artUrl || ""
-            }
-
-            Row {
-                visible: root.playing
-                anchors.right: parent.right
-                anchors.rightMargin: 16
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 3
-                Repeater {
-                    model: 4
-                    Rectangle {
-                        width: 3
-                        anchors.verticalCenter: parent.verticalCenter
-                        radius: 1.5
-                        height: 6
-                        color: root.accent
-                        SequentialAnimation on height {
-                            running: root.playing && idleView.on
-                            loops: Animation.Infinite
-                            NumberAnimation { to: 16 - index * 2; duration: 260 + index * 90; easing.type: Easing.InOutSine }
-                            NumberAnimation { to: 5 + index; duration: 300 + index * 70; easing.type: Easing.InOutSine }
-                        }
-                    }
-                }
-            }
-            Row {
-                visible: !root.playing
-                anchors.right: parent.right
-                anchors.rightMargin: 14
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 7
-
-                Ico {
-                    visible: root.ui.dnd
-                    anchors.verticalCenter: parent.verticalCenter
-                    source: "notifications-disabled"
-                    size: 14
-                    tint: root.accent
-                }
-
-                // Okunmamış bildirim rozeti
-                Rectangle {
-                    visible: root.unread > 0
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: Math.max(16, badgeText.implicitWidth + 8)
-                    height: 16
-                    radius: 8
-                    color: "#ff453a"
-                    Text {
-                        renderType: Text.CurveRendering
-                        font.family: "Inter"
-                        id: badgeText
-                        anchors.centerIn: parent
-                        text: root.unread > 9 ? "9+" : root.unread
-                        color: "white"
-                        font.pixelSize: 10
-                        font.weight: Font.Bold
-                    }
-                }
-                Ico {
-                    anchors.verticalCenter: parent.verticalCenter
-                    source: root.wifiIcon()
-                    size: 15
-                    tint: root.wifi.connected ? "white" : "#8e8e93"
-                }
-                Row {
-                    visible: root.battery.present
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 3
-                    Ico {
-                        anchors.verticalCenter: parent.verticalCenter
-                        source: root.batIcon()
-                        size: 16
-                        tint: root.batColor()
-                    }
-                    Text {
-                        renderType: Text.CurveRendering
-                        font.family: "Inter"
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: root.battery.level + "%"
-                        color: "#aeaeb2"
-                        font.pixelSize: 11
-                        font.weight: Font.Medium
+                    SequentialAnimation on height {
+                        running: root.playing && bars.live
+                        loops: Animation.Infinite
+                        NumberAnimation { to: 12 - (index % 2) * 3; duration: 260 + index * 90; easing.type: Easing.InOutSine }
+                        NumberAnimation { to: 4 + index % 3; duration: 300 + index * 70; easing.type: Easing.InOutSine }
                     }
                 }
             }
         }
 
         // ==============================================================
-        // BANNER (bildirim / yaklaşan etkinlik)
+        // KAPALI ADA: [sol yuva] saat [sağ yuva]
         // ==============================================================
-        Item {
-            id: bannerView
-            readonly property bool on: root.mode === "banner"
-            readonly property bool isEvent: root.banner.kind === "event"
-            width: 400; height: 80
-            anchors.horizontalCenter: parent.horizontalCenter
-            opacity: on ? 1 : 0
-            visible: opacity > 0
-            Behavior on opacity {
-                SequentialAnimation {
-                    PauseAnimation { duration: bannerView.on ? 80 : 0 }
-                    NumberAnimation { duration: bannerView.on ? 240 : 80; easing.type: Easing.OutCubic }
+        View {
+            id: idleView
+            on: root.mode === "idle"
+            width: root.idleW
+            height: 32
+
+            // Sol yuva
+            Item {
+                x: 16
+                width: root.slotW
+                height: parent.height
+                Rectangle {   // ekran kaydı
+                    visible: root.leftSlot === "rec"
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 10; height: 10; radius: 5
+                    color: "#ff453a"
+                    SequentialAnimation on opacity {
+                        running: root.leftSlot === "rec" && idleView.on
+                        loops: Animation.Infinite
+                        NumberAnimation { to: 0.3; duration: 650 }
+                        NumberAnimation { to: 1; duration: 650 }
+                    }
+                }
+                ArtImage {    // çalan şarkının kapağı
+                    visible: root.leftSlot === "art"
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 22; height: 22; radius: 6
+                    source: root.media.artUrl || ""
+                }
+                Shape {       // odak halkası
+                    visible: root.leftSlot === "ring"
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 18; height: 18
+                    preferredRendererType: Shape.CurveRenderer
+                    ShapePath {
+                        strokeColor: Qt.rgba(1, 1, 1, 0.18)
+                        strokeWidth: 2.5
+                        fillColor: "transparent"
+                        PathAngleArc { centerX: 9; centerY: 9; radiusX: 7.5; radiusY: 7.5; startAngle: 0; sweepAngle: 360 }
+                    }
+                    ShapePath {
+                        strokeColor: root.focusColor
+                        strokeWidth: 2.5
+                        capStyle: ShapePath.RoundCap
+                        fillColor: "transparent"
+                        PathAngleArc { centerX: 9; centerY: 9; radiusX: 7.5; radiusY: 7.5; startAngle: -90; sweepAngle: 360 * root.focusFrac }
+                    }
+                }
+                Rectangle {   // görülmemiş bildirim
+                    visible: root.leftSlot === "dot"
+                    anchors.verticalCenter: parent.verticalCenter
+                    x: 4
+                    width: 6; height: 6; radius: 3
+                    color: "white"
                 }
             }
-            transformOrigin: Item.Top
-            scale: on ? 1 : 0.95
-            Behavior on scale { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
 
+            Text {
+                renderType: Text.CurveRendering
+                font.family: "Inter"
+                anchors.centerIn: parent
+                text: root.clock
+                color: "white"
+                font.pixelSize: 15
+                font.weight: Font.DemiBold
+                font.letterSpacing: -0.1
+                font.features: { "tnum": 1 }
+            }
+
+            // Sağ yuva (sağa yaslı)
+            Row {
+                anchors.right: parent.right
+                anchors.rightMargin: 16
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 6
+                layoutDirection: Qt.RightToLeft
+                Bars {
+                    visible: root.rightBars
+                    live: idleView.on
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                    renderType: Text.CurveRendering
+                    font.family: "Inter"
+                    visible: root.rightText !== ""
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.rightText
+                    color: root.rec.state !== "idle" ? "#ff6961" : root.focusColor
+                    font.pixelSize: 15
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: -0.2
+                    font.features: { "tnum": 1 }
+                }
+                Ico {         // Rahatsız Etme (başka bir şey yokken)
+                    visible: !root.rightBars && root.rightText === "" && root.ui.dnd
+                    anchors.verticalCenter: parent.verticalCenter
+                    source: root.ic("isle-moon")
+                    size: 13
+                    tint: "#5e5ce6"
+                }
+            }
+        }
+
+        // ==============================================================
+        // BİLDİRİM / YAKLAŞAN ETKİNLİK
+        // ==============================================================
+        View {
+            id: bannerView
+            on: root.mode === "banner"
+            readonly property bool isEvent: root.banner.kind === "event"
+            width: 440; height: 64
+
+            PeekRow {
+                anchors.fill: parent
+                anchors.leftMargin: 18
+                anchors.rightMargin: 18
+                icon: bannerView.isEvent ? root.ic("isle-calendar") : ""
+                badgeColor: bannerView.isEvent ? root.calColor(root.banner.cal) : "#1c1c1e"
+                title: bannerView.isEvent ? (root.banner.title || "") : (root.banner.title || root.banner.app || "")
+                subtitle: bannerView.isEvent
+                    ? root.untilText(root.banner) + (root.banner.location ? " · " + root.banner.location : "")
+                    : (root.banner.body ? String(root.banner.body).replace(/\s+/g, " ") : (root.banner.app || ""))
+
+                Rectangle {
+                    visible: bannerView.isEvent && !!root.banner.url
+                    width: 58; height: 30; radius: 15
+                    color: joinMa.pressed ? "#0060c0" : "#0a84ff"
+                    Text {
+                        renderType: Text.CurveRendering
+                        font.family: "Inter"
+                        anchors.centerIn: parent
+                        text: "Katıl"
+                        color: "white"
+                        font.pixelSize: 12
+                        font.weight: Font.DemiBold
+                    }
+                    MouseArea {
+                        id: joinMa
+                        anchors.fill: parent
+                        onClicked: { root.send("open_url", root.banner.url); root.flashKind = "" }
+                    }
+                }
+            }
+            // Bildirimlerde rozetin içinde uygulama simgesi
             AppIcon {
                 visible: !bannerView.isEvent
-                x: 16; y: 20
-                size: 40
+                x: 18 + 5; y: (parent.height - 22) / 2
+                size: 22
                 source: root.banner.icon || "notifications"
-            }
-            Rectangle {
-                visible: bannerView.isEvent
-                x: 16; y: 20
-                width: 40; height: 40; radius: 12
-                color: root.calColor(root.banner.cal)
-                Ico {
-                    anchors.centerIn: parent
-                    source: "view-calendar-month"
-                    size: 22
-                    tint: "white"
-                }
-            }
-
-            Column {
-                x: 68
-                anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - 68 - 18
-                spacing: 2
-                Text {
-                    renderType: Text.CurveRendering
-                    font.family: "Inter"
-                    width: parent.width
-                    text: bannerView.isEvent ? "YAKLAŞAN ETKİNLİK" : String(root.banner.app || "").toUpperCase()
-                    color: bannerView.isEvent ? root.calColor(root.banner.cal) : "#8e8e93"
-                    font.pixelSize: 10
-                    font.weight: Font.DemiBold
-                    font.letterSpacing: 0.4
-                    elide: Text.ElideRight
-                }
-                Text {
-                    renderType: Text.CurveRendering
-                    font.family: "Inter"
-                    width: parent.width
-                    text: root.banner.title || ""
-                    color: "white"
-                    font.pixelSize: 14
-                    font.weight: Font.DemiBold
-                    elide: Text.ElideRight
-                }
-                Text {
-                    renderType: Text.CurveRendering
-                    font.family: "Inter"
-                    width: parent.width
-                    text: bannerView.isEvent
-                        ? root.untilText(root.banner) + (root.banner.location ? " · " + root.banner.location : "")
-                        : (root.banner.body || "")
-                    color: "#aeaeb2"
-                    font.pixelSize: 12
-                    elide: Text.ElideRight
-                }
             }
         }
 
         // ==============================================================
         // MEDYA (fare üstünde / parça değişince)
         // ==============================================================
-        Item {
+        View {
             id: mediaView
-            readonly property bool on: root.mode === "media"
-            width: 380; height: 92
-            anchors.horizontalCenter: parent.horizontalCenter
-            opacity: on ? 1 : 0
-            visible: opacity > 0
-            Behavior on opacity {
-                SequentialAnimation {
-                    PauseAnimation { duration: mediaView.on ? 80 : 0 }
-                    NumberAnimation { duration: mediaView.on ? 240 : 80; easing.type: Easing.OutCubic }
-                }
-            }
-            transformOrigin: Item.Top
-            scale: on ? 1 : 0.95
-            Behavior on scale { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
+            on: root.mode === "media"
+            width: 400; height: 84
 
             ArtImage {
                 id: mArt
-                x: 16; y: 14
-                width: 52; height: 52; radius: 12
+                x: 18; y: 12
+                width: 44; height: 44; radius: 10
                 source: root.media.artUrl || ""
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: root.send("raise")
-                }
+                MouseArea { anchors.fill: parent; onClicked: root.send("raise") }
             }
             Column {
                 anchors.left: mArt.right
@@ -962,7 +916,7 @@ Window {
                 anchors.right: mCtl.left
                 anchors.rightMargin: 8
                 anchors.verticalCenter: mArt.verticalCenter
-                spacing: 2
+                spacing: 1
                 Text {
                     renderType: Text.CurveRendering
                     font.family: "Inter"
@@ -978,7 +932,7 @@ Window {
                     font.family: "Inter"
                     width: parent.width
                     text: root.media.artist || root.media.player || ""
-                    color: "#8e8e93"
+                    color: Qt.rgba(1, 1, 1, 0.5)
                     font.pixelSize: 12
                     elide: Text.ElideRight
                 }
@@ -986,207 +940,136 @@ Window {
             Row {
                 id: mCtl
                 anchors.right: parent.right
-                anchors.rightMargin: 12
+                anchors.rightMargin: 14
                 anchors.verticalCenter: mArt.verticalCenter
-                spacing: 2
+                spacing: 0
                 CtlButton {
                     width: 32; height: 32; iconSize: 16
-                    icon: "media-skip-backward"
+                    icon: root.ic("isle-backward-symbolic")
                     enabledBtn: root.media.canPrev !== false
                     onClicked: root.send("prev")
                 }
                 CtlButton {
-                    width: 38; height: 38; iconSize: 18
-                    filled: true
-                    icon: root.playing ? "media-playback-pause" : "media-playback-start"
+                    width: 34; height: 34; iconSize: 19
+                    icon: root.playing ? root.ic("isle-pause-symbolic") : root.ic("isle-play-symbolic")
                     onClicked: root.send("play_pause")
                 }
                 CtlButton {
                     width: 32; height: 32; iconSize: 16
-                    icon: "media-skip-forward"
+                    icon: root.ic("isle-forward-symbolic")
                     enabledBtn: root.media.canNext !== false
                     onClicked: root.send("next")
                 }
             }
             IslandSlider {
-                x: 16; y: 70
-                width: parent.width - 32
-                height: 12
-                barHeight: 4
+                x: 18; y: 64
+                width: parent.width - 36
+                height: 10
+                barHeight: 3
+                trackColor: Qt.rgba(1, 1, 1, 0.2)
                 interactive: root.media.canSeek === true
-                fillColor: root.accent
+                fillColor: "white"
                 value: root.media.length > 0 ? root.pos / root.media.length : 0
                 onCommitted: v => root.send("seek", v * root.media.length)
             }
         }
 
         // ==============================================================
-        // SES HUD
+        // SES
         // ==============================================================
-        Item {
+        View {
             id: volumeView
-            readonly property bool on: root.mode === "volume"
-            width: 270; height: 46
-            anchors.horizontalCenter: parent.horizontalCenter
-            opacity: on ? 1 : 0
-            visible: opacity > 0
-            Behavior on opacity {
-                SequentialAnimation {
-                    PauseAnimation { duration: volumeView.on ? 80 : 0 }
-                    NumberAnimation { duration: volumeView.on ? 200 : 80; easing.type: Easing.OutCubic }
-                }
-            }
-            transformOrigin: Item.Top
-            scale: on ? 1 : 0.95
-            Behavior on scale { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
+            on: root.mode === "volume"
+            width: 300; height: 52
 
-            RowLayout {
+            PeekRow {
                 anchors.fill: parent
-                anchors.leftMargin: 18
-                anchors.rightMargin: 18
-                spacing: 12
-                Ico {
-                    source: root.volIcon()
-                    size: 18
-                    tint: root.volume.muted ? "#ff453a" : "white"
+                anchors.leftMargin: 14
+                anchors.rightMargin: 20
+                icon: root.volume.muted ? root.ic("isle-speaker-off-symbolic") : root.ic("isle-speaker-3-symbolic")
+                badgeColor: root.volume.muted ? "#ff453a" : "#2c2c2e"
+                level: root.volume.muted ? 0 : root.volume.level / 100
+                title: root.volume.muted ? "Sessiz" : "Ses"
+                subtitle: {
+                    for (var i = 0; i < root.audio.sinks.length; i++)
+                        if (root.audio.sinks[i].name === root.audio["default"]) return root.audio.sinks[i].desc
+                    return ""
                 }
-                IslandSlider {
-                    Layout.fillWidth: true
-                    interactive: false
-                    barHeight: 6
-                    value: root.volume.level / 100
-                    fillColor: root.volume.muted ? "#636366" : "white"
-                }
-                Text {
-                    renderType: Text.CurveRendering
-                    font.family: "Inter"
-                    Layout.preferredWidth: 34
-                    horizontalAlignment: Text.AlignRight
-                    text: root.volume.muted ? "Sessiz" : root.volume.level + "%"
-                    color: "white"
-                    font.pixelSize: 12
-                    font.weight: Font.DemiBold
-                }
+                value: root.volume.muted ? "" : root.volume.level + "%"
             }
         }
 
         // ==============================================================
         // RAFA BIRAK (dosya sürüklenirken)
         // ==============================================================
-        Item {
+        View {
             id: dropView
-            readonly property bool on: root.mode === "drop"
-            width: 320; height: 78
-            anchors.horizontalCenter: parent.horizontalCenter
-            opacity: on ? 1 : 0
-            visible: opacity > 0
-            Behavior on opacity {
-                SequentialAnimation {
-                    PauseAnimation { duration: dropView.on ? 80 : 0 }
-                    NumberAnimation { duration: dropView.on ? 200 : 80; easing.type: Easing.OutCubic }
-                }
-            }
-            transformOrigin: Item.Top
-            scale: on ? 1 : 0.95
-            Behavior on scale { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
+            on: root.mode === "drop"
+            width: 300; height: 56
 
-            Row {
-                anchors.centerIn: parent
-                spacing: 14
-                Ico {
-                    anchors.verticalCenter: parent.verticalCenter
-                    source: "folder-download"
-                    size: 30
-                    tint: root.accent
-                }
-                Column {
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 2
-                    Text { text: "Rafa bırak"; color: "white"; font.pixelSize: 15; font.weight: Font.DemiBold }
-                    Text { text: "Dosyayı bırakınca rafa eklenir"; color: "#8e8e93"; font.pixelSize: 11 }
-                }
+            PeekRow {
+                anchors.fill: parent
+                anchors.leftMargin: 14
+                anchors.rightMargin: 18
+                icon: root.ic("isle-shelf")
+                badgeColor: "#0a84ff"
+                title: "Rafa bırak"
+                subtitle: "Dosyayı bırakınca rafa eklenir"
             }
         }
 
         // ==============================================================
         // KISA BİLDİRİM (toast)
         // ==============================================================
-        Item {
+        Text {
+            id: toastMeasure
+            visible: false
+            text: root.toastText
+            font.family: "Inter"
+            font.pixelSize: 14
+            font.weight: Font.DemiBold
+        }
+        View {
             id: toastView
-            readonly property bool on: root.mode === "toast"
-            width: 280; height: 46
-            anchors.horizontalCenter: parent.horizontalCenter
-            opacity: on ? 1 : 0
-            visible: opacity > 0
-            Behavior on opacity {
-                SequentialAnimation {
-                    PauseAnimation { duration: toastView.on ? 80 : 0 }
-                    NumberAnimation { duration: toastView.on ? 200 : 80; easing.type: Easing.OutCubic }
-                }
-            }
-            transformOrigin: Item.Top
-            scale: on ? 1 : 0.95
-            Behavior on scale { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
+            on: root.mode === "toast"
+            width: root.islandW; height: 52
+            readonly property bool bad: root.toastIcon === "media-record" || root.toastIcon === "dialog-warning"
 
-            Row {
-                anchors.centerIn: parent
-                spacing: 10
-                Ico {
-                    anchors.verticalCenter: parent.verticalCenter
-                    source: root.toastIcon
-                    size: 18
-                    tint: root.toastIcon === "media-record" || root.toastIcon === "dialog-warning" ? "#ff453a" : root.accent
-                }
-                Text {
-                    renderType: Text.CurveRendering
-                    font.family: "Inter"
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: root.toastText
-                    color: "white"
-                    font.pixelSize: 13
-                    font.weight: Font.DemiBold
-                }
+            PeekRow {
+                anchors.fill: parent
+                anchors.leftMargin: 14
+                anchors.rightMargin: 20
+                icon: root.toastIcon === "chronometer" ? root.ic("isle-timer")
+                    : toastView.bad ? root.ic(root.toastIcon === "media-record" ? "isle-record-symbolic" : "isle-warning-symbolic")
+                    : root.toastIcon === "folder-download" ? root.ic("isle-shelf")
+                    : root.ic("isle-check-symbolic")
+                badgeColor: root.toastIcon === "chronometer" ? root.focusColor : toastView.bad ? "#ff453a" : "#30d158"
+                title: root.toastText
             }
         }
 
         // ==============================================================
         // ŞARJ / PİL UYARISI
         // ==============================================================
-        Item {
+        View {
             id: chargeView
-            readonly property bool on: root.mode === "charge"
-            width: 250; height: 46
-            anchors.horizontalCenter: parent.horizontalCenter
-            opacity: on ? 1 : 0
-            visible: opacity > 0
-            Behavior on opacity {
-                SequentialAnimation {
-                    PauseAnimation { duration: chargeView.on ? 80 : 0 }
-                    NumberAnimation { duration: chargeView.on ? 200 : 80; easing.type: Easing.OutCubic }
-                }
-            }
-            transformOrigin: Item.Top
-            scale: on ? 1 : 0.95
-            Behavior on scale { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
+            on: root.mode === "charge"
+            width: 300; height: 56
 
-            Row {
-                anchors.centerIn: parent
-                spacing: 10
-                Ico {
-                    anchors.verticalCenter: parent.verticalCenter
-                    source: root.batIcon()
-                    size: 22
-                    tint: root.chargeKind === "low" ? "#ff453a" : "#30d158"
-                }
-                Text {
-                    renderType: Text.CurveRendering
-                    font.family: "Inter"
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: (root.chargeKind === "low" ? "Pil azaldı" : "Şarj oluyor") + " · " + root.battery.level + "%"
-                    color: root.chargeKind === "low" ? "#ff453a" : "white"
-                    font.pixelSize: 13
-                    font.weight: Font.DemiBold
-                }
+            PeekRow {
+                anchors.fill: parent
+                anchors.leftMargin: 14
+                anchors.rightMargin: 20
+                readonly property bool low: root.chargeKind === "low"
+                icon: low ? root.ic("isle-battery-low-symbolic") : root.ic("isle-bolt")
+                badgeColor: low ? "#3a1512" : "#0f3a1c"
+                iconTint: low ? "#ff453a" : "#30d158"
+                level: root.battery.level / 100
+                levelColor: low ? "#ff453a" : "#30d158"
+                title: low ? "Pil azaldı" : "Şarj oluyor"
+                subtitle: low ? "Şarj aletini tak" : "Şarj aleti bağlı"
+                value: root.battery.level + "%"
+                valueColor: low ? "#ff453a" : "white"
             }
         }
 
