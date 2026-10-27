@@ -40,6 +40,7 @@ import config  # noqa: E402
 import focus  # noqa: E402
 import lyrics as lyrics_mod  # noqa: E402
 import privacy  # noqa: E402
+from alerts import Alerts  # noqa: E402
 import controls  # noqa: E402
 import sysinfo  # noqa: E402
 from clipboard import Clipboard  # noqa: E402
@@ -355,15 +356,38 @@ def bg(fn):
     threading.Thread(target=fn, daemon=True).start()
 
 
+_alert_seq = 0
+_alert_lock = threading.Lock()
+
+
+def emit_alert(d):
+    """Kısa sistem uyarısı (Caps Lock, Bluetooth, internet): arayüz seq değişince gösterir."""
+    global _alert_seq
+    with _alert_lock:
+        _alert_seq += 1
+        state.update("alert", {**d, "seq": _alert_seq})
+
+
 def slow_poller():
     global cfg
     last_cfg = config.mtime()
     last_cal = 0
     last_ctl = 0
+    first_net = True
     state.update("apps", apps.resolve(cfg.get("apps", [])))
     while True:
         state.update("battery", sysinfo.battery_info())
-        state.update("wifi", read_network_stable())
+        prev_net = state.data["wifi"]
+        net = read_network_stable()
+        state.update("wifi", net)
+        if first_net:   # ilk okumada uyarı yok
+            first_net = False
+        else:
+            if prev_net.get("connected") and not net["connected"]:
+                emit_alert({"kind": "net", "connected": False})
+            elif not prev_net.get("connected") and net["connected"]:
+                emit_alert({"kind": "net", "connected": True, "ssid": net.get("ssid", ""),
+                            "wired": net.get("type") == "ethernet"})
 
         if time.time() - last_ctl > 15:
             last_ctl = time.time()
@@ -777,6 +801,7 @@ def main():
     global store, stats, clip, recorder, focus_timer, lyrics
     lyrics = lyrics_mod.Lyrics(lambda v: state.update("lyrics", v))
     privacy.Privacy(lambda v: state.update("privacy", v))
+    Alerts(emit_alert)
     fc = cfg.get("focus", {})
     focus_timer = focus.Focus(lambda v: state.update("focus", v), set_dnd,
                               fc.get("work", 25), fc.get("break", 5))
