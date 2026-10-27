@@ -5,6 +5,7 @@ protokolüyle panodaki değişiklikleri izler. Geçmiş YALNIZCA bellekte tutulu
 parola yöneticilerinin "gizli" işaretli girdileri hiç saklanmaz.
 """
 import os
+import re
 import select
 import socket
 import struct
@@ -208,15 +209,33 @@ class Clipboard:
 
     # -- geçmiş
     def _add(self, text):
+        old = next((i for i in self.items if i["text"] == text), None)
         self.items = [i for i in self.items if i["text"] != text]    # aynıysa üste taşı
         self.counter += 1
-        self.items.insert(0, {"id": self.counter, "text": text})
-        del self.items[MAX_ITEMS:]
+        self.items.insert(0, {"id": self.counter, "text": text, "pinned": bool(old and old.get("pinned"))})
+        self._trim()
         self._publish()
 
+    def _trim(self):
+        """Sabitlenenler sınırdan sayılmaz ve hiç atılmaz."""
+        loose = [i for i in self.items if not i.get("pinned")][MAX_ITEMS:]
+        if loose:
+            drop = {i["id"] for i in loose}
+            self.items = [i for i in self.items if i["id"] not in drop]
+
     def _publish(self):
-        self.on_update([{"id": i["id"], "text": i["text"][:PREVIEW], "len": len(i["text"])}
-                        for i in self.items])
+        # Sabitlenenler en üstte, sonra en yeniler
+        ordered = sorted(self.items, key=lambda i: not i.get("pinned"))
+        self.on_update([{"id": i["id"], "text": i["text"][:PREVIEW], "len": len(i["text"]),
+                         "pinned": bool(i.get("pinned")),
+                         "link": bool(re.match(r"https?://\S+$", i["text"].strip()))}
+                        for i in ordered])
+
+    def pin(self, item_id):
+        for i in self.items:
+            if i["id"] == item_id:
+                i["pinned"] = not i.get("pinned")
+        self._publish()
 
     def copy(self, item_id):
         """Geçmişteki bir öğeyi panoya geri koyar."""
@@ -235,5 +254,5 @@ class Clipboard:
         self._publish()
 
     def clear(self):
-        self.items = []
+        self.items = [i for i in self.items if i.get("pinned")]
         self._publish()

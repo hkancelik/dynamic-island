@@ -687,6 +687,8 @@ def execute(cmd, arg):
         clip.copy(int(arg))
     elif cmd == "clip_del" and clip:
         clip.delete(int(arg))
+    elif cmd == "clip_pin" and clip:
+        clip.pin(int(arg))
     elif cmd == "clip_clear" and clip:
         clip.clear()
     elif cmd == "rec_toggle" and recorder:
