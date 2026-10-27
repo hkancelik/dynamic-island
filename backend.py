@@ -41,6 +41,7 @@ import focus  # noqa: E402
 import lyrics as lyrics_mod  # noqa: E402
 import privacy  # noqa: E402
 from alerts import Alerts  # noqa: E402
+from agents import Agents  # noqa: E402
 import controls  # noqa: E402
 import sysinfo  # noqa: E402
 from clipboard import Clipboard  # noqa: E402
@@ -580,6 +581,7 @@ clip = None
 recorder = None
 focus_timer = None
 lyrics = None
+agents = Agents(lambda v: state.update("agents", v))
 ui = config.load_ui()
 
 
@@ -619,6 +621,8 @@ def execute(cmd, arg):
         ui["hidden"] = (not ui["hidden"]) if cmd == "toggle_hide" else cmd == "hide"
         config.save_ui(ui)
         state.update("ui", dict(ui))
+    elif cmd == "agent_answer" and isinstance(arg, dict):
+        agents.answer(int(arg.get("id", 0)), str(arg.get("answer", "")))
     elif cmd == "lyrics_want" and lyrics:
         lyrics.set_want(bool(arg))
     elif cmd.startswith("focus_") and focus_timer:
@@ -755,11 +759,34 @@ class Handler(BaseHTTPRequestHandler):
         version, changed = state.wait(since)
         self.reply(200, json.dumps({"v": version, "s": changed}).encode())
 
+    def agent(self, what):
+        """Claude Code hook'u (agent_hook.py) ile konuşma; ana döngüyü bekletmez."""
+        try:
+            n = int(self.headers.get("Content-Length", 0))
+            msg = json.loads(self.rfile.read(n) or b"{}")
+            if what == "ask":
+                out = {"id": agents.ask(msg)}
+            elif what == "wait":
+                out = {"answer": agents.wait(int(msg.get("id", 0)), msg.get("timeout", 2))}
+            elif what == "cancel":
+                agents.cancel(int(msg.get("id", 0)))
+                out = {}
+            elif what == "done":
+                agents.done(msg)
+                out = {}
+            else:
+                return self.reply(404)
+            self.reply(200, json.dumps(out).encode())
+        except Exception:
+            self.reply(400)
+
     def do_POST(self):
         # Tarayıcılardan gelen CSRF'i engelle: özel başlık ön-kontrol (preflight)
         # gerektirir ve biz buna yanıt vermiyoruz.
         if not self.host_ok() or self.headers.get("X-Island") != "1":
             return self.reply(403)
+        if self.path.startswith("/agent/"):
+            return self.agent(self.path[len("/agent/"):])
         if self.path != "/cmd":
             return self.reply(404)
         try:
