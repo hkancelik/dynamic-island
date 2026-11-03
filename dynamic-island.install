@@ -1,0 +1,7 @@
+post_install() {
+    echo "Başlatmak için:  systemctl --user enable --now dynamic-island"
+    echo "Claude Code onayları için: /usr/share/dynamic-island/install-claude-hooks.sh"
+}
+post_upgrade() {
+    echo "Çalışıyorsa yeniden başlat:  systemctl --user restart dynamic-island"
+}

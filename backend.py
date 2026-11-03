@@ -8,6 +8,7 @@ olduğunda durumu günceller. QML tarafı 127.0.0.1 üzerinden
 ile konuşur.
 """
 import glob
+import hmac
 import json
 import os
 import re
@@ -40,6 +41,8 @@ import config  # noqa: E402
 import focus  # noqa: E402
 import lyrics as lyrics_mod  # noqa: E402
 import privacy  # noqa: E402
+import phone as phone_mod  # noqa: E402
+import weather as weather_mod  # noqa: E402
 from alerts import Alerts  # noqa: E402
 from agents import Agents  # noqa: E402
 import controls  # noqa: E402
@@ -51,6 +54,7 @@ from fullscreen import Fullscreen  # noqa: E402
 from notifications import Notifications  # noqa: E402
 
 PORT = 47615
+TOKEN = config.make_token()
 MPRIS_PREFIX = "org.mpris.MediaPlayer2."
 MPRIS_PATH = "/org/mpris/MediaPlayer2"
 PLAYER_IFACE = "org.mpris.MediaPlayer2.Player"
@@ -87,6 +91,10 @@ class State:
             "clipOn": False,
             "notes": [],
             "shelf": [],
+            "docs": [],
+            "docNew": {"seq": 0, "id": 0},
+            "weather": {"ok": False},
+            "phone": {"present": False, "devices": []},
             "rec": {"state": "idle", "since": 0, "error": "", "last": ""},
             "panelReq": 0,
             "tabReq": {"seq": 0},
@@ -389,7 +397,24 @@ def apply_switch(key, value):
             state.update("clipOn", bool(value))
     elif key == "lyrics" and not value and lyrics:
         lyrics.set_want(False)
+    elif key == "weather_enabled" and weather:
+        weather.refresh()
+    elif key == "phone":
+        set_phone(bool(value))
     publish_settings()
+
+
+def set_phone(on):
+    """KDE Connect bağlantısını aç/kapat (kapalıyken D-Bus'a hiç bakılmaz)."""
+    global phone
+    if on and phone is None:
+        try:
+            phone = phone_mod.Phone(lambda v: state.update("phone", v) if cfg.get("phone", True) else None,
+                                    emit_alert)
+        except Exception as e:
+            print("KDE Connect yok:", e, flush=True)
+    elif not on:
+        state.update("phone", {"present": False, "devices": []})
 
 
 def set_claude_hooks(on):
@@ -427,7 +452,6 @@ def slow_poller():
     last_cal = 0
     last_ctl = 0
     first_net = True
-    state.update("apps", apps.resolve(cfg.get("apps", [])))
     while True:
         state.update("battery", sysinfo.battery_info())
         prev_net = state.data["wifi"]
@@ -450,8 +474,9 @@ def slow_poller():
         if changed:
             last_cfg = config.mtime()
             cfg = config.load()
-            state.update("apps", apps.resolve(cfg.get("apps", [])))
             publish_settings()
+            if weather:
+                weather.refresh()
         if changed or time.time() - last_cal > 600:
             last_cal = time.time()
             try:
@@ -645,6 +670,8 @@ clip = None
 recorder = None
 focus_timer = None
 lyrics = None
+weather = None
+phone = None
 agents = Agents(lambda v: state.update("agents", v))
 ui = config.load_ui()
 
@@ -687,6 +714,8 @@ def execute(cmd, arg):
         state.update("ui", dict(ui))
     elif cmd == "setting" and isinstance(arg, dict):
         apply_switch(str(arg.get("key", "")), bool(arg.get("value")))
+    elif cmd == "phone_ring" and phone:
+        bg(lambda: phone.ring(str(arg)))
     elif cmd == "claude_hooks":
         bg(lambda: set_claude_hooks(bool(arg)))
     elif cmd == "agent_answer" and isinstance(arg, dict):
@@ -730,10 +759,12 @@ def execute(cmd, arg):
             subprocess.Popen(["xdg-open", str(arg)], stdout=subprocess.DEVNULL,
                              stderr=subprocess.DEVNULL, start_new_session=True)
     elif cmd == "open_tab" and isinstance(arg, dict):
-        # Paneli belirli bir sekmede aç (betikler / kısayollar için): {"tab": 0-8, "lyrics": bool}
+        # Paneli belirli bir sekmede aç (betikler / kısayollar için): {"tab": 0-8, "lyrics": bool, "sub": Araçlar bölümü 0-3}
         req = {"seq": state.data["tabReq"]["seq"] + 1, "tab": int(arg.get("tab", 0))}
         if "lyrics" in arg:
             req["lyrics"] = bool(arg["lyrics"])
+        if "sub" in arg:
+            req["sub"] = int(arg["sub"])
         state.update("tabReq", req)
     elif cmd == "toggle_panel":
         state.update("panelReq", state.data["panelReq"] + 1)
@@ -749,6 +780,14 @@ def execute(cmd, arg):
         store.delete_note(int(arg))
     elif cmd == "note_clear_done" and store:
         store.clear_done()
+    elif cmd == "doc_new" and store:
+        state.update("docNew", {"seq": state.data["docNew"]["seq"] + 1, "id": store.add_doc()})
+    elif cmd == "doc_set" and store and isinstance(arg, dict):
+        store.set_doc(int(arg.get("id", 0)), arg.get("text", ""))
+    elif cmd == "doc_title" and store and isinstance(arg, dict):
+        store.set_doc_title(int(arg.get("id", 0)), arg.get("title", ""))
+    elif cmd == "doc_del" and store:
+        store.delete_doc(int(arg))
     elif cmd == "shelf_add" and store:
         store.add_files(arg if isinstance(arg, list) else [arg])
     elif cmd == "shelf_del" and store:
@@ -759,6 +798,8 @@ def execute(cmd, arg):
         store.open_file(int(arg))
     elif cmd == "clip_copy" and clip:
         clip.copy(int(arg))
+    elif cmd == "copy_text" and clip:
+        clip.copy_text(str(arg)[:200])
     elif cmd == "clip_del" and clip:
         clip.delete(int(arg))
     elif cmd == "clip_pin" and clip:
@@ -778,8 +819,13 @@ def execute(cmd, arg):
         notifs.dismiss(int(arg))
     elif cmd == "notif_clear" and notifs:
         notifs.clear()
+    elif cmd == "apps_refresh":
+        bg(lambda: state.update("apps", apps.running()))
     elif cmd == "launch":
         apps.launch(str(arg), state.data["apps"])
+    elif cmd == "app_close":
+        apps.close(str(arg), state.data["apps"])
+        bg(lambda: (time.sleep(1.5), state.update("apps", apps.running())))
     elif cmd == "cal_add" and isinstance(arg, dict):
         bg(lambda: cal_add(arg))
     elif cmd == "cal_refresh":
@@ -807,12 +853,22 @@ def execute(cmd, arg):
 # --------------------------------------------------------------------------
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
+    timeout = 15              # yarım kalan istekler iş parçacığı tutmasın
+    MAX_BODY = 64 * 1024
 
     def log_message(self, *_):
         pass
 
     def host_ok(self):
-        return self.headers.get("Host", "").split(":")[0] in ("127.0.0.1", "localhost")
+        # DNS rebinding'e karşı Host + yerel süreçlere karşı belirteç (X-Island)
+        return (self.headers.get("Host", "").split(":")[0] in ("127.0.0.1", "localhost")
+                and hmac.compare_digest(self.headers.get("X-Island", "").encode(), TOKEN.encode()))
+
+    def body(self):
+        n = int(self.headers.get("Content-Length", 0))
+        if not 0 <= n <= self.MAX_BODY:
+            raise ValueError("gövde çok büyük")
+        return json.loads(self.rfile.read(n) or b"{}")
 
     def reply(self, code, body=b"", ctype="application/json"):
         self.send_response(code)
@@ -831,15 +887,17 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         if u.path != "/state":
             return self.reply(404)
-        since = int(parse_qs(u.query).get("v", ["0"])[0])
+        try:
+            since = int(parse_qs(u.query).get("v", ["0"])[0])
+        except ValueError:
+            return self.reply(400)
         version, changed = state.wait(since)
         self.reply(200, json.dumps({"v": version, "s": changed}).encode())
 
     def agent(self, what):
         """Claude Code hook'u (agent_hook.py) ile konuşma; ana döngüyü bekletmez."""
         try:
-            n = int(self.headers.get("Content-Length", 0))
-            msg = json.loads(self.rfile.read(n) or b"{}")
+            msg = self.body()
             if what == "ask":
                 out = {"id": agents.ask(msg)}
             elif what == "wait":
@@ -859,15 +917,14 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         # Tarayıcılardan gelen CSRF'i engelle: özel başlık ön-kontrol (preflight)
         # gerektirir ve biz buna yanıt vermiyoruz.
-        if not self.host_ok() or self.headers.get("X-Island") != "1":
+        if not self.host_ok():
             return self.reply(403)
         if self.path.startswith("/agent/"):
             return self.agent(self.path[len("/agent/"):])
         if self.path != "/cmd":
             return self.reply(404)
         try:
-            n = int(self.headers.get("Content-Length", 0))
-            msg = json.loads(self.rfile.read(n) or b"{}")
+            msg = self.body()
             GLib.idle_add(execute, str(msg.get("cmd", "")), msg.get("arg"))
             self.reply(200, b"{}")
         except Exception:
@@ -901,15 +958,21 @@ def main():
     except Exception as e:
         print("Gece Işığı denetimi yok:", e, flush=True)
     refresh_audio()
-    global store, stats, clip, recorder, focus_timer, lyrics
+    global store, stats, clip, recorder, focus_timer, lyrics, weather
     lyrics = lyrics_mod.Lyrics(lambda v: state.update("lyrics", v))
     privacy.Privacy(lambda v: state.update("privacy", v))
+    weather = weather_mod.Weather(
+        lambda v: state.update("weather", v),
+        lambda: {**cfg.get("weather", {}), "enabled": cfg.get("weather_enabled", True)})
+    if cfg.get("phone", True):
+        set_phone(True)
     Alerts(emit_alert)
     publish_settings()
     fc = cfg.get("focus", {})
     focus_timer = focus.Focus(lambda v: state.update("focus", v), set_dnd,
                               fc.get("work", 25), fc.get("break", 5))
-    store = Store(lambda v: state.update("notes", v), lambda v: state.update("shelf", v))
+    store = Store(lambda v: state.update("notes", v), lambda v: state.update("shelf", v),
+                  lambda v: state.update("docs", v))
     stats = sysinfo.Stats(lambda v: state.update("stats", v))
     recorder = Recorder(lambda v: state.update("rec", v))
     if cfg.get("clipboard_history", True):

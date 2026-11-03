@@ -215,7 +215,8 @@ class Clipboard:
         old = next((i for i in self.items if i["text"] == text), None)
         self.items = [i for i in self.items if i["text"] != text]    # aynıysa üste taşı
         self.counter += 1
-        self.items.insert(0, {"id": self.counter, "text": text, "pinned": bool(old and old.get("pinned"))})
+        self.items.insert(0, {"id": self.counter, "text": text, "ts": int(time.time() * 1000),
+                              "pinned": bool(old and old.get("pinned"))})
         self._trim()
         self._publish()
 
@@ -230,7 +231,7 @@ class Clipboard:
         # Sabitlenenler en üstte, sonra en yeniler
         ordered = sorted(self.items, key=lambda i: not i.get("pinned"))
         self.on_update([{"id": i["id"], "text": i["text"][:PREVIEW], "len": len(i["text"]),
-                         "pinned": bool(i.get("pinned")),
+                         "pinned": bool(i.get("pinned")), "ts": i.get("ts", 0),
                          "link": bool(re.match(r"https?://\S+$", i["text"].strip()))}
                         for i in ordered])
 
@@ -243,7 +244,12 @@ class Clipboard:
     def copy(self, item_id):
         """Geçmişteki bir öğeyi panoya geri koyar."""
         text = next((i["text"] for i in self.items if i["id"] == item_id), None)
-        if text is None or not self.ok:
+        if text is not None:
+            self.copy_text(text)
+
+    def copy_text(self, text):
+        """Verilen metni panoya koyar (geçmişe eklenmez)."""
+        if not self.ok:
             return
         src = self._alloc()
         self.sources[src] = text

@@ -1,0 +1,13 @@
+[Unit]
+Description=Dynamic Island (KDE Plasma)
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=@DIR@/launch.sh
+ExecStop=@DIR@/stop.sh
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=graphical-session.target

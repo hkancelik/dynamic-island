@@ -9,10 +9,10 @@ KDE Plasma 6 (Wayland) için ekranın üstünde duran, Apple'ın Dynamic Island'
   süre kapalı adada da görünür
 - **Kapalı ada:** saat ortada; solda kapak / odak halkası / kayıt noktası, sağda müzik çubukları ve odak süresi.
   Ses, şarj, bildirim ve uyarılar kısa görünümlerle
-- **Bildirimler:** Plasma bildirimleri adada toplanır, Rahatsız Etme
+- **Bildirimler:** Plasma bildirimleri adada toplanır, Rahatsız Etme; tıklayınca uygulama açılır
 - **Takvim:** iCal/.ics adresleri ve CalDAV (Apple iCloud), adadan etkinlik ekleme
 - **Kontrol:** ses, her ekranın ayrı parlaklığı (DDC/CI), Gece Işığı, Wi-Fi, Bluetooth, güç profili
-- **Uygulamalar, Sistem (CPU, bellek, ağ, sıcaklık, pil), Araçlar (pano, notlar, dosya rafı)**
+- **Uygulamalar (arka planda çalışanlar, ✕ ile kapat), Sistem (CPU, bellek, ağ, sıcaklık, pil), Araçlar (pano, anımsatıcı, notlar, dosya rafı)**
 - Ada ana ekranda durur; ekran çıkarılınca diğer ekrana geçer
 
 - **Claude Code onayları:** izin istekleri adada (Reddet / İzin ver / Her zaman), iş bitince haber.
@@ -25,7 +25,12 @@ KDE Plasma 6 (Wayland) için ekranın üstünde duran, Apple'ın Dynamic Island'
 
 - **Ayarlar:** saatin yanındaki dişli. Plasma bildirim pencereleri, tam ekranda gizle, pano geçmişi,
   şarkı sözleri, toplantı uyarısı, gizlilik noktaları, Claude Code onaylarını kur/kaldır
-- **Pano:** arama (Enter ilk sonucu kopyalar), sabitleme (Temizle sabitlenenleri silmez)
+- **Hava durumu:** Sistem sekmesinde sıcaklık, durum, en yüksek/en düşük (Open-Meteo, anahtarsız).
+  Konum: config.json'da `"weather": {"city": "İstanbul"}`; boşsa IP adresinden yaklaşık konum bulunur
+- **Telefon (KDE Connect):** Sistem sekmesinde telefonun pil yüzdesi, dokununca telefon çalar;
+  gelen aramada kapalı adada uyarı. Telefon bildirimleri zaten Plasma bildirimi olarak adaya düşer
+- **Pano:** arama (Enter ilk sonucu kopyalar), sabitleme (Temizle sabitlenenleri silmez), kaç dk önce kopyalandığı;
+  arama kutusuna işlem yazılırsa (`2*(3+4)`, `15%*200`, `2^10`) sonuç çıkar, dokununca kopyalanır
 
 ## Çalıştırma
 
@@ -35,8 +40,12 @@ KDE Plasma 6 (Wayland) için ekranın üstünde duran, Apple'ın Dynamic Island'
 ./ctl.sh toggle
 ```
 
+Oturumla birlikte başlatmak için (systemd kullanıcı servisi): `./install.sh` (kaldırma: `--remove`).
+Arch/CachyOS'ta paket olarak: bu klasörde `makepkg -si`, sonra `systemctl --user enable --now dynamic-island`.
+`./ctl.sh panel` ve `./ctl.sh tab 6` paneli açar (kısayol ve betikler için).
+
 Gerekenler: `qml6`, `layer-shell-qt`, Kirigami, Python 3 (PyGObject, dbus-python),
-`kscreen-doctor`, `nmcli`. Ayarlar: `~/.config/dynamic-island/config.json`
+`kscreen-doctor`, `nmcli`; telefon özelliği için `kdeconnect` (isteğe bağlı). Ayarlar: `~/.config/dynamic-island/config.json`
 (adada Takvim → "Ayar dosyasını aç").
 
 ### Apple iCloud takvimi
@@ -57,6 +66,7 @@ Gerekenler: `qml6`, `layer-shell-qt`, Kirigami, Python 3 (PyGObject, dbus-python
 ## Yapı
 
 - `backend.py`: durum + komut sunucusu (127.0.0.1:47615), MPRIS, ses, ağ, takvim, bildirimler
+- `weather.py`, `phone.py`: hava durumu (Open-Meteo) ve KDE Connect (D-Bus)
 - `caldav.py`, `calendar_ics.py`: bağımlılıksız CalDAV istemcisi ve iCalendar okuyucu
-- `contents/ui/`: QML arayüz (`main.qml` ada ve panel, `Page*.qml` sekmeler)
+- `contents/ui/`: QML arayüz (`main.qml` ada ve panel, `IslandTabs.qml` sekme çubuğu, `View.qml`/`Bars.qml` ortak parçalar, `Page*.qml` sekmeler)
 - `contents/icons/`: ikonlar Isle projesinden (GPL-3.0, bkz. `contents/icons/LICENSE-isle-GPL3.txt`)

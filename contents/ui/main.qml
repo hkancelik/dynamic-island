@@ -12,7 +12,7 @@ Window {
     // launch.sh ana ekranın adını argüman olarak verir; yoksa Qt'nin birincil ekranı.
     // Qt pencerenin ekranını geometrisinden seçtiği için konum da o ekrana taşınır (yoksa eDP'ye düşer).
     readonly property var targetScreen: {
-        const want = Qt.application.arguments[Qt.application.arguments.length - 1]
+        const want = Qt.application.arguments[Qt.application.arguments.length - 2]
         for (const s of Qt.application.screens)
             if (s.name === want) return s
         return Qt.application.screens[0]
@@ -74,6 +74,10 @@ Window {
     property bool clipOn: false
     property var notes: []
     property var shelf: []
+    property var docs: []               // serbest metin notları (Araçlar → Notlar)
+    property var docNew: ({ seq: 0, id: 0 })
+    property var weather: ({ ok: false })
+    property var phone: ({ present: false, devices: [] })
     property var rec: ({ state: "idle", since: 0, error: "", last: "" })
     // Odak sayacı (arka uçta tutulur): phase idle|work|break, running, end (ms), left (ms)
     property var pomo: ({ phase: "idle", running: false, end: 0, left: 1500000, work: 25, brk: 5, round: 0, seq: 0 })
@@ -84,7 +88,8 @@ Window {
     property var priv: ({ camera: [], mic: [], screen: [] })
     // Ayarlar sayfasının gösterdiği değerler (arka uç config.json'dan yayınlar)
     property var settings: ({ suppress_plasma_popups: true, hide_in_fullscreen: true, clipboard_history: true,
-                              lyrics: true, meeting_alerts: true, privacy_dots: true, claudeHooks: false,
+                              lyrics: true, meeting_alerts: true, privacy_dots: true, weather_enabled: true, phone: true,
+                              claudeHooks: false,
                               accounts: [], calendars: 0, shortcuts: {} })
     // Claude Code: bekleyen izin istekleri (en eskisi önce) ve son "bitti" haberi
     property var agents: ({ asks: [], done: { seq: 0 } })
@@ -145,6 +150,7 @@ Window {
     // Mod
     // ------------------------------------------------------------------
     property bool panelOpen: false
+    property int toolsSub: 0            // Araçlar sekmesindeki bölüm: 0 Pano, 1 Anımsatıcı, 2 Raf, 3 Notlar
     property int tab: 0                 // 0 Müzik, 1 Bildirim, 2 Odak, 3 Takvim, 4 Kontrol, 5 Uygulama, 6 Sistem, 7 Araçlar
     property bool hovered: false
     property string flashKind: ""       // volume | charge | track | notif | event
@@ -180,10 +186,11 @@ Window {
     }
     readonly property int idleW: 32 + 2 * slotW + 20 + 46
 
-    // Açık panel: geniş ve alçak. Başlık 40 + sayfa 150 + alt boşluk 14.
+    // Açık panel: geniş ve alçak. Başlık 40 + sayfa 162 + alt boşluk 14.
     readonly property real panelScale: 1
     readonly property int panelW: lyricsWant ? 760 : 600
-    readonly property int panelH: 212
+    // Ayarlar çok satır içerir: o sekmede panel daha yüksek
+    readonly property int panelH: tab === 8 ? 292 : 224
 
     readonly property int islandW: {
         switch (mode) {
@@ -192,7 +199,7 @@ Window {
         case "toast": return Math.min(420, Math.max(260, toastMeasure.implicitWidth + 32 + 10 + 40))
         case "banner": return 440
         case "media": return 400
-        case "volume": return 300
+        case "volume": return 330
         case "charge": return 300
         case "alert": return 330
         case "ask": return 480
@@ -208,7 +215,7 @@ Window {
         case "toast": return 52
         case "banner": return 64
         case "media": return 84
-        case "volume": return 52
+        case "volume": return 44
         case "charge": return 56
         case "alert": return 56
         case "ask": return 132
@@ -331,6 +338,10 @@ Window {
         flashKind = kind
         transientTimer.interval = ms
         transientTimer.restart()
+        flashAnim.stop()
+        flashAnim.from = Math.max(0, islandW - 72)
+        flashAnim.duration = ms
+        flashAnim.start()
     }
 
     // -- bildirimler
@@ -450,7 +461,11 @@ Window {
         if (s.clipOn !== undefined) clipOn = s.clipOn
         if (s.notes !== undefined) notes = s.notes
         if (s.shelf !== undefined) shelf = s.shelf
+        if (s.docs !== undefined) docs = s.docs
+        if (s.docNew !== undefined) docNew = s.docNew
         if (s.rec !== undefined) rec = s.rec
+        if (s.weather !== undefined) weather = s.weather
+        if (s.phone !== undefined) phone = s.phone
         if (s.focus !== undefined) { pomo = s.focus; focusNow = Date.now() }
         if (s.lyrics !== undefined) lyr = s.lyrics
         if (s.privacy !== undefined) priv = s.privacy
@@ -489,6 +504,7 @@ Window {
         if (s.tabReq !== undefined && s.tabReq.seq !== o.tabReq.seq) {
             tab = Math.max(0, Math.min(8, s.tabReq.tab))
             if (s.tabReq.lyrics !== undefined) lyricsOn = s.tabReq.lyrics
+            if (s.tabReq.sub !== undefined) toolsSub = Math.max(0, Math.min(3, s.tabReq.sub))
             panelOpen = true
         }
 
@@ -504,7 +520,8 @@ Window {
         // Sistem uyarısı (bildirim/etkinlik gösterilirken araya girmez)
         if (s.alert !== undefined && (o.alert === undefined || s.alert.seq !== o.alert.seq)
             && flashKind !== "notif" && flashKind !== "event")
-            flash("alert", s.alert.kind === "net" && !s.alert.connected ? 4000 : 2200)
+            flash("alert", s.alert.kind === "call" ? 9000
+                  : s.alert.kind === "net" && !s.alert.connected ? 4000 : 2200)
 
         // Odak sayacı: aşama değişti
         if (s.focus !== undefined && o.focus !== undefined && s.focus.seq !== o.focus.seq)
@@ -556,9 +573,22 @@ Window {
     // ------------------------------------------------------------------
     // Arka uçla iletişim
     // ------------------------------------------------------------------
+    // API belirteci: launch.sh dosya yolunu son argüman olarak verir (QML_XHR_ALLOW_FILE_READ=1 ile okunur)
+    function readToken() {
+        try {
+            var f = new XMLHttpRequest()
+            f.open("GET", "file://" + Qt.application.arguments[Qt.application.arguments.length - 1], false)
+            f.send()
+            return (f.responseText || "").trim()
+        } catch (e) { return "" }
+    }
+    property string token: ""
+
     function poll() {
+        if (!token) token = readToken()
         var x = new XMLHttpRequest()
         x.open("GET", endpoint + "/state?v=" + stateVersion)
+        x.setRequestHeader("X-Island", token)
         x.timeout = 40000
         x.onreadystatechange = function () {
             if (x.readyState !== XMLHttpRequest.DONE) return
@@ -572,6 +602,7 @@ Window {
                 } catch (e) { console.warn("durum hatası:", e) }
                 poll()
             } else {
+                if (x.status === 403) token = ""   // arka uç yeniden başlamış: belirteci yeniden oku
                 retryTimer.start()
             }
         }
@@ -581,7 +612,7 @@ Window {
     function send(cmd, arg) {
         var x = new XMLHttpRequest()
         x.open("POST", endpoint + "/cmd")
-        x.setRequestHeader("X-Island", "1")
+        x.setRequestHeader("X-Island", token)
         x.setRequestHeader("Content-Type", "application/json")
         x.send(JSON.stringify({ cmd: cmd, arg: arg === undefined ? null : arg }))
     }
@@ -701,6 +732,20 @@ Window {
         Behavior on width { SpringAnimation { spring: 3.4; damping: 0.3; epsilon: 0.3 } }
         Behavior on height { SpringAnimation { spring: 3.4; damping: root.mode === "panel" ? 0.36 : 0.3; epsilon: 0.3 } }
 
+        // Geçici görünümlerde (bildirim, toast, uyarı) kalan süreyi gösteren ince çizgi: ortaya doğru eriyip biter
+        Rectangle {
+            id: flashBar
+            visible: width > 0 && (root.mode === "banner" || root.mode === "toast" || root.mode === "alert")
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 4
+            width: 0
+            height: 2
+            radius: 1
+            color: Qt.rgba(1, 1, 1, 0.3)
+        }
+        NumberAnimation { id: flashAnim; target: flashBar; property: "width"; to: 0; easing.type: Easing.Linear }
+
         Keys.onEscapePressed: root.panelOpen = false
 
         // Dosyayı ada üzerine sürükleyince "rafa bırak" kutusu açılır
@@ -728,17 +773,23 @@ Window {
                     panelAutoClose.stop()
                     root.peek = true
                     root.hovered = true
-                    if (hold) transientTimer.stop()
+                    if (hold) { transientTimer.stop(); flashAnim.pause() }
                 } else {
                     hoverOff.restart()
                     peekOff.restart()
                     if (root.panelOpen) panelAutoClose.restart()
-                    if (hold) { transientTimer.interval = 1500; transientTimer.restart() }
+                    if (hold) {
+                        transientTimer.interval = 1500; transientTimer.restart()
+                        flashAnim.stop()
+                        flashAnim.from = flashBar.width
+                        flashAnim.duration = 1500
+                        flashAnim.start()
+                    }
                 }
             }
         }
 
-        // Boş alana tık: paneli aç/kapat (banner'da ilgili sekmeyi aç). Sağ tık: sessize al / banner'ı kapat.
+        // Boş alana tık: paneli aç/kapat (banner'da ilgili sekmeyi aç). Sağ tık: sessize al / banner'ı kapat (panelde yok).
         MouseArea {
             anchors.fill: parent
             acceptedButtons: Qt.LeftButton | Qt.RightButton
@@ -751,8 +802,8 @@ Window {
                     }
                 } else if (root.mode === "banner") {
                     root.flashKind = ""
-                } else {
-                    root.send("vol_mute")
+                } else if (root.mode !== "panel") {
+                    root.send("vol_mute")   // panelde sağ tık sayfalara aittir (bağlam menüleri)
                 }
             }
         }
@@ -767,55 +818,6 @@ Window {
                     var d = Math.round(acc)
                     acc -= d
                     root.send("vol_delta", d)
-                }
-            }
-        }
-
-        // Görünüm geçişi: ada büyürken içerik hafif gecikmeyle belirir
-        component View: Item {
-            id: v
-            property bool on: false
-            anchors.top: parent.top
-            anchors.horizontalCenter: parent.horizontalCenter
-            opacity: on ? 1 : 0
-            visible: opacity > 0
-            Behavior on opacity {
-                SequentialAnimation {
-                    PauseAnimation { duration: v.on ? 90 : 0 }
-                    NumberAnimation { duration: v.on ? 220 : 80; easing.type: Easing.OutCubic }
-                }
-            }
-            transformOrigin: Item.Top
-            scale: on ? 1 : 0.94
-            Behavior on scale { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
-        }
-
-        // Müzik çubukları: beyaz, duraklayınca soluk. Saniyede 10 adım: sürekli
-        // animasyon pencereyi saniyede 60 kez çizdirir (~%13 işlemci), adımlı hali çok daha hafif.
-        component Bars: Row {
-            id: bars
-            property bool live: true
-            property real t: 0
-            spacing: 2
-            opacity: root.playing ? 1 : 0.43
-            Timer {
-                interval: 100
-                repeat: true
-                running: root.playing && bars.live
-                onTriggered: bars.t += 0.1
-            }
-            Repeater {
-                model: 4
-                Rectangle {
-                    required property int index
-                    readonly property var speed: [7.1, 9.3, 6.2, 8.4]
-                    width: 3
-                    anchors.verticalCenter: parent.verticalCenter
-                    radius: 1.5
-                    height: root.playing && bars.live
-                            ? Math.round(4 + 8 * Math.abs(Math.sin(bars.t * speed[index] + index * 1.3)))
-                            : 4
-                    color: "white"
                 }
             }
         }
@@ -901,6 +903,7 @@ Window {
                 layoutDirection: Qt.RightToLeft
                 Bars {
                     visible: root.rightBars
+                    playing: root.playing
                     live: idleView.on
                     anchors.verticalCenter: parent.verticalCenter
                 }
@@ -1081,22 +1084,40 @@ Window {
         View {
             id: volumeView
             on: root.mode === "volume"
-            width: 300; height: 52
+            width: 330; height: 44
 
-            PeekRow {
-                anchors.fill: parent
-                anchors.leftMargin: 14
+            Ico {
+                id: vIcon
+                x: 20
+                anchors.verticalCenter: parent.verticalCenter
+                source: root.volume.muted ? root.ic("isle-speaker-off-symbolic") : root.ic("isle-speaker-3-symbolic")
+                size: 18
+                tint: root.volume.muted ? "#ff453a" : "white"
+            }
+            IslandSlider {
+                x: 52
+                width: parent.width - 52 - 64
+                height: 24
+                anchors.verticalCenter: parent.verticalCenter
+                barHeight: 8
+                trackColor: Qt.rgba(1, 1, 1, 0.16)
+                fillColor: root.volume.muted ? Qt.rgba(1, 1, 1, 0.35) : "white"
+                value: root.volume.muted ? 0 : root.volume.level / 100
+                onMoved: v => root.send("vol_set", Math.round(v * 100))
+            }
+            Text {
+                renderType: Text.CurveRendering
+                font.family: "Inter"
+                anchors.right: parent.right
                 anchors.rightMargin: 20
-                icon: root.volume.muted ? root.ic("isle-speaker-off-symbolic") : root.ic("isle-speaker-3-symbolic")
-                badgeColor: root.volume.muted ? "#ff453a" : "#2c2c2e"
-                level: root.volume.muted ? 0 : root.volume.level / 100
-                title: root.volume.muted ? "Sessiz" : "Ses"
-                subtitle: {
-                    for (var i = 0; i < root.audio.sinks.length; i++)
-                        if (root.audio.sinks[i].name === root.audio["default"]) return root.audio.sinks[i].desc
-                    return ""
-                }
-                value: root.volume.muted ? "" : root.volume.level + "%"
+                anchors.verticalCenter: parent.verticalCenter
+                width: 34
+                horizontalAlignment: Text.AlignRight
+                text: root.volume.muted ? "Sessiz" : root.volume.level
+                color: root.volume.muted ? "#ff453a" : "white"
+                font.pixelSize: root.volume.muted ? 11 : 14
+                font.weight: Font.DemiBold
+                font.features: { "tnum": 1 }
             }
         }
 
@@ -1297,17 +1318,21 @@ Window {
                 anchors.leftMargin: 14
                 anchors.rightMargin: 18
                 icon: alertView.a.kind === "caps" ? root.ic("isle-capslock-symbolic")
+                    : alertView.a.kind === "call" ? root.ic("isle-phone-symbolic")
                     : alertView.a.kind === "bt" ? (alertView.headset ? root.ic("isle-headphones-symbolic") : root.ic("isle-bluetooth-symbolic"))
                     : alertView.a.connected ? root.ic("isle-wifi-symbolic") : root.ic("isle-wifi-off-symbolic")
                 badgeColor: alertView.a.kind === "caps" ? "#2c2c2e"
+                          : alertView.a.kind === "call" ? "#30d158"
                           : alertView.a.kind === "bt" ? (alertView.a.connected ? "#0a84ff" : "#2c2c2e")
                           : alertView.a.connected ? "#0a84ff" : "#ff453a"
                 level: alertView.a.kind === "bt" && alertView.a.connected && alertView.a.battery >= 0 ? alertView.a.battery / 100 : -1
                 levelColor: alertView.a.battery >= 0 && alertView.a.battery <= 20 ? "#ff453a" : "#30d158"
                 title: alertView.a.kind === "caps" ? "Caps Lock"
+                     : alertView.a.kind === "call" ? alertView.a.name
                      : alertView.a.kind === "bt" ? (alertView.a.name || "Bluetooth")
                      : alertView.a.connected ? "Bağlandı" : "İnternet bağlantısı kesildi"
-                subtitle: alertView.a.kind === "bt" ? (alertView.a.connected ? "Bağlandı" : "Bağlantı kesildi")
+                subtitle: alertView.a.kind === "call" ? (alertView.a.number || "Telefon çalıyor")
+                        : alertView.a.kind === "bt" ? (alertView.a.connected ? "Bağlandı" : "Bağlantı kesildi")
                         : alertView.a.kind === "net" ? (alertView.a.connected ? (alertView.a.wired ? "Kablolu ağ" : (alertView.a.ssid || "Wi-Fi"))
                                                                               : "Ağ yok")
                         : ""
@@ -1392,96 +1417,7 @@ Window {
                     Layout.rightMargin: 20
                     spacing: 6
 
-                    Item {
-                        id: tabBar
-                        Layout.fillHeight: true
-                        Layout.preferredWidth: selW + (tabs.length - 1) * otherW
-
-                        readonly property var tabs: [
-                            { icon: root.ic("isle-music"), label: "Müzik" },
-                            { icon: root.ic("isle-bell"), label: "Bildirim" },
-                            { icon: root.ic("isle-timer"), label: "Odak" },
-                            { icon: root.ic("isle-calendar"), label: "Takvim" },
-                            { icon: root.ic("isle-sun-symbolic"), label: "Kontrol" },
-                            { icon: "view-app-grid-symbolic", label: "Uygulama" },
-                            { icon: root.ic("isle-gauge"), label: "Sistem" },
-                            { icon: root.ic("isle-shelf"), label: "Araçlar" }
-                        ]
-                        // Seçili sekme etiketiyle birlikte hap; diğerleri yalnızca ikon
-                        // Seçili sekmenin genişliği etiketine göre (10 px iç boşluk, 6 px ikon arası)
-                        readonly property var labelW: [42, 52, 34, 46, 50, 62, 44, 50]
-                        // Ayarlar (8) bir sekme değil: o açıkken hiçbir sekme seçili görünmez
-                        readonly property real selW: root.tab < 8 ? 20 + 16 + 6 + labelW[root.tab] : otherW
-                        readonly property real otherW: 32
-
-                        Rectangle {
-                            width: tabBar.selW
-                            height: 28
-                            y: 4
-                            x: root.tab * tabBar.otherW
-                            visible: root.tab < 8
-                            radius: 14
-                            color: Qt.rgba(1, 1, 1, 0.09)
-                            Behavior on x { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
-                        }
-
-                        Row {
-                            anchors.fill: parent
-                            Repeater {
-                                model: tabBar.tabs
-                                Item {
-                                    required property var modelData
-                                    required property int index
-                                    width: root.tab === index ? tabBar.selW : tabBar.otherW
-                                    Rectangle {
-                                        visible: tabMa.containsMouse && root.tab !== index
-                                        anchors.centerIn: parent
-                                        width: parent.width; height: 28; radius: 14
-                                        color: Qt.rgba(1, 1, 1, 0.05)
-                                    }
-                                    height: 36
-                                    Behavior on width { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
-
-                                    Row {
-                                        anchors.centerIn: parent
-                                        spacing: 6
-                                        Ico {
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            source: modelData.icon
-                                            size: 16
-                                            tint: "white"
-                                            opacity: root.tab === index ? 1 : (tabMa.containsMouse ? 0.9 : 0.55)
-                                        }
-                                        Text {
-                                            renderType: Text.CurveRendering
-                                            font.family: "Inter"
-                                            opacity: root.tab === index ? 1 : 0
-                                            visible: opacity > 0
-                                            Behavior on opacity { NumberAnimation { duration: 200 } }
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            text: modelData.label
-                                            color: "white"
-                                            font.pixelSize: 13
-                                            font.weight: Font.DemiBold
-                                        }
-                                    }
-                                    // rozetler: okunmamış bildirim, kayıt sürüyor
-                                    Rectangle {
-                                        visible: (index === 1 && root.unread > 0) || (index === 5 && root.rec.state !== "idle")
-                                        x: parent.width / 2 + 3; y: 7
-                                        width: 6; height: 6; radius: 3
-                                        color: "#ff453a"
-                                    }
-                                    MouseArea {
-                                        id: tabMa
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        onClicked: root.tab = index
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    IslandTabs { sh: root }
 
                     Item { Layout.fillWidth: true }
 
@@ -1539,10 +1475,10 @@ Window {
                     }
                 }
 
-                // Sayfalar (150 px yükseklik, kenarlardan 28 px)
+                // Sayfalar (162 px yükseklik, kenarlardan 28 px)
                 Item {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 150
+                    Layout.preferredHeight: root.panelH - 62
                     Layout.leftMargin: 28
                     Layout.rightMargin: 28
                     Layout.topMargin: 6

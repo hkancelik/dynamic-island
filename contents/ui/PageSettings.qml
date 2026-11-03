@@ -33,13 +33,13 @@ Item {
         property bool on
         signal toggled
         Layout.fillWidth: true
-        Layout.preferredHeight: 32
+        Layout.preferredHeight: 40
         Column {
             anchors.left: parent.left
             anchors.right: s2.left
             anchors.rightMargin: 10
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 0
+            spacing: 2
             Text {
                 renderType: Text.CurveRendering
                 font.family: "Inter"
@@ -55,7 +55,7 @@ Item {
                 font.family: "Inter"
                 width: parent.width
                 text: r.hint
-                color: Qt.rgba(1, 1, 1, 0.45)
+                color: Qt.rgba(1, 1, 1, 0.62)
                 font.pixelSize: 11
                 elide: Text.ElideRight
             }
@@ -73,13 +73,13 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 6
+        spacing: 8
 
         GridLayout {
             Layout.fillWidth: true
             columns: 2
             columnSpacing: 28
-            rowSpacing: 0
+            rowSpacing: 2
 
             Row2 {
                 title: "Plasma bildirim pencereleri"
@@ -117,6 +117,18 @@ Item {
                 on: page.st.privacy_dots
                 onToggled: page.set("privacy_dots", !on)
             }
+            Row2 {
+                title: "Hava durumu"
+                hint: "Open-Meteo; konum ayar dosyasından"
+                on: page.st.weather_enabled
+                onToggled: page.set("weather_enabled", !on)
+            }
+            Row2 {
+                title: "Telefon (KDE Connect)"
+                hint: "Pil, gelen arama, telefonu çaldır"
+                on: page.st.phone
+                onToggled: page.set("phone", !on)
+            }
         }
 
         Rectangle {
@@ -136,12 +148,13 @@ Item {
             }
             Item {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 32
+                Layout.preferredHeight: 40
                 Column {
                     anchors.left: parent.left
                     anchors.right: cfgBtn.left
                     anchors.rightMargin: 10
                     anchors.verticalCenter: parent.verticalCenter
+                    spacing: 2
                     Text {
                         renderType: Text.CurveRendering
                         font.family: "Inter"
@@ -157,7 +170,7 @@ Item {
                         width: parent.width
                         text: page.st.accounts.length > 0 ? page.st.accounts.join(", ")
                               : page.st.calendars > 0 ? page.st.calendars + " iCal adresi" : "Bağlı değil"
-                        color: Qt.rgba(1, 1, 1, 0.45)
+                        color: Qt.rgba(1, 1, 1, 0.62)
                         font.pixelSize: 11
                         elide: Text.ElideRight
                     }

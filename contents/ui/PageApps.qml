@@ -1,14 +1,25 @@
 import QtQuick
 import QtQuick.Layouts
 
-// Uygulamalar: üstte tek sıra uygulama, altta hap biçiminde hızlı eylemler.
+// Uygulamalar: üstte arka planda çalışan uygulamalar (ikon → öne al, ✕ → kapat), altta hızlı eylemler.
 Item {
     id: page
 
     property var sh
     property string armed: ""   // onay bekleyen güç eylemi
 
-    onVisibleChanged: if (!visible) armed = ""
+    onVisibleChanged: {
+        if (!visible) armed = ""
+        else sh.send("apps_refresh")
+    }
+
+    // Sayfa açıkken çalışan uygulamalar yoklanır; kapalıyken hiç iş yapılmaz
+    Timer {
+        interval: 4000
+        repeat: true
+        running: page.visible
+        onTriggered: sh.send("apps_refresh")
+    }
 
     Timer { id: disarm; interval: 3000; onTriggered: page.armed = "" }
 
@@ -67,49 +78,83 @@ Item {
 
         Item { Layout.fillHeight: true }
 
-        Row {
+        Item {
             Layout.fillWidth: true
             Layout.preferredHeight: 74
-            Repeater {
-                model: sh.appList.slice(0, 8)
-                Item {
-                    required property var modelData
-                    width: page.width / Math.max(6, Math.min(8, sh.appList.length))
-                    height: 74
 
-                    Rectangle {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        y: 0
-                        width: 52; height: 52; radius: 14
-                        color: appMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
-                        AppIcon {
-                            anchors.centerIn: parent
-                            size: 40
-                            source: modelData.icon
-                            scale: appMa.pressed ? 0.9 : 1
-                            Behavior on scale { NumberAnimation { duration: 100 } }
+            Text {
+                visible: sh.appList.length === 0
+                anchors.centerIn: parent
+                renderType: Text.CurveRendering
+                font.family: "Inter"
+                text: "Çalışan uygulama yok"
+                color: Qt.rgba(1, 1, 1, 0.45)
+                font.pixelSize: 12
+            }
+
+            Row {
+                anchors.fill: parent
+                Repeater {
+                    model: sh.appList.slice(0, 8)
+                    Item {
+                        id: cell
+                        required property var modelData
+                        width: page.width / Math.max(6, Math.min(8, sh.appList.length))
+                        height: 74
+
+                        Rectangle {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            y: 0
+                            width: 52; height: 52; radius: 14
+                            color: appMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+                            AppIcon {
+                                anchors.centerIn: parent
+                                size: 40
+                                source: cell.modelData.icon
+                                scale: appMa.pressed ? 0.9 : 1
+                                Behavior on scale { NumberAnimation { duration: 100 } }
+                            }
                         }
-                    }
-                    Text {
-                        renderType: Text.CurveRendering
-                        font.family: "Inter"
-                        y: 56
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        width: parent.width - 6
-                        horizontalAlignment: Text.AlignHCenter
-                        text: modelData.name
-                        color: Qt.rgba(1, 1, 1, 0.75)
-                        font.pixelSize: 11
-                        font.weight: Font.Medium
-                        elide: Text.ElideRight
-                    }
-                    MouseArea {
-                        id: appMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: {
-                            sh.send("launch", modelData.id)
-                            sh.panelOpen = false
+                        Text {
+                            renderType: Text.CurveRendering
+                            font.family: "Inter"
+                            y: 56
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: parent.width - 6
+                            horizontalAlignment: Text.AlignHCenter
+                            text: cell.modelData.name
+                            color: Qt.rgba(1, 1, 1, 0.75)
+                            font.pixelSize: 11
+                            font.weight: Font.Medium
+                            elide: Text.ElideRight
+                        }
+                        MouseArea {
+                            id: appMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: {
+                                sh.send("launch", cell.modelData.id)
+                                sh.panelOpen = false
+                            }
+                        }
+                        // Kapat rozeti: fare üstteyken görünür
+                        Rectangle {
+                            visible: appMa.containsMouse || closeMa.containsMouse
+                            x: parent.width / 2 + 10
+                            y: -2
+                            width: 20; height: 20; radius: 10
+                            color: closeMa.pressed ? "#ff6961" : (closeMa.containsMouse ? "#ff453a" : "#636366")
+                            Ico {
+                                anchors.centerIn: parent
+                                source: sh.ic("isle-close-symbolic")
+                                size: 10
+                            }
+                            MouseArea {
+                                id: closeMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: sh.send("app_close", cell.modelData.id)
+                            }
                         }
                     }
                 }

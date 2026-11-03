@@ -13,6 +13,7 @@ import os
 import re
 import time
 
+import apps
 import dbus
 import dbus.bus
 import dbus.service
@@ -183,7 +184,7 @@ class Notifications:
             "title": _clean(summary, 120),
             "body": _clean(body, 280),
             "ts": int(time.time() * 1000),
-            "desktop": str(hints.get("desktop-entry", "")),
+            "desktop": str(hints.get("desktop-entry", "")) or apps.guess(app, app_icon),
         })
         self.items.insert(0, entry)
         del self.items[MAX_ITEMS:]
@@ -198,7 +199,6 @@ class Notifications:
 
     def open(self, item_id):
         """Bildirimin kaynağı olan uygulamayı aç ve bildirimi kaldır."""
-        import apps
         for i in self.items:
             if i["id"] == item_id:
                 apps.launch_desktop(i.get("desktop", ""))

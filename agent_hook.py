@@ -20,9 +20,15 @@ MAX_SHOWN = 300          # bundan uzun / çok satırlı istekler terminalde soru
 ANSWER_WITHIN = 590      # Claude Code hook süresi 600 sn
 
 
+def token():
+    base = os.environ.get("XDG_RUNTIME_DIR") or "/tmp/dynamic-island-%d" % os.getuid()
+    with open(os.path.join(base, "dynamic-island", "token")) as f:
+        return f.read().strip()
+
+
 def post(what, body, timeout=12):
     req = urllib.request.Request(URL + what, data=json.dumps(body).encode(), method="POST",
-                                 headers={"X-Island": "1", "Content-Type": "application/json"})
+                                 headers={"X-Island": token(), "Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read() or b"{}")
 

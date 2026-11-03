@@ -1,15 +1,15 @@
 import QtQuick
 import QtQuick.Layouts
 
-// Araçlar: Pano geçmişi | Notlar | Dosya rafı
+// Araçlar: Pano geçmişi | Anımsatıcı | Dosya rafı | Notlar
 Item {
     id: page
 
     property var sh
-    property int sub: 0
 
-    readonly property var names: ["Pano", "Anımsatıcı", "Raf"]
-    readonly property var counts: [sh.clip.length, sh.notes.length, sh.shelf.length]
+    readonly property var names: ["Pano", "Anımsatıcı", "Raf", "Notlar"]
+    readonly property var counts: [sh.clip.length, sh.notes.length, sh.shelf.length, sh.docs.length]
+    readonly property int sub: sh.toolsSub
 
     ColumnLayout {
         anchors.fill: parent
@@ -24,7 +24,7 @@ Item {
             color: "#1c1c1e"
 
             Rectangle {
-                width: (parent.width - 6) / 3
+                width: (parent.width - 6) / page.names.length
                 height: 22
                 y: 3
                 x: 3 + page.sub * width
@@ -40,7 +40,7 @@ Item {
                     Item {
                         required property string modelData
                         required property int index
-                        width: (parent.width) / 3
+                        width: parent.width / page.names.length
                         height: 22
                         Text {
                             renderType: Text.CurveRendering
@@ -51,7 +51,7 @@ Item {
                             font.pixelSize: 12
                             font.weight: Font.Medium
                         }
-                        MouseArea { anchors.fill: parent; onClicked: page.sub = index }
+                        MouseArea { anchors.fill: parent; onClicked: sh.toolsSub = index }
                     }
                 }
             }
@@ -79,6 +79,13 @@ Item {
                 anchors.fill: parent
                 sh: page.sh
                 opacity: page.sub === 2 ? 1 : 0
+                visible: opacity > 0
+                Behavior on opacity { NumberAnimation { duration: 140 } }
+            }
+            ToolsDocs {
+                anchors.fill: parent
+                sh: page.sh
+                opacity: page.sub === 3 ? 1 : 0
                 visible: opacity > 0
                 Behavior on opacity { NumberAnimation { duration: 140 } }
             }

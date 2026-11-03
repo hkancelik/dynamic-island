@@ -36,6 +36,7 @@ Item {
         property var series: []
         property real seriesMax: 0
         property real bar: -1          // 0..1: alt çizgi (grafik yoksa)
+        property string icon           // sağ üst köşe (tema ikonu)
 
         Layout.fillWidth: true
         Layout.fillHeight: true
@@ -54,6 +55,13 @@ Item {
             lineColor: card.accent
             maxValue: card.seriesMax
             visible: card.series.length > 1
+        }
+        Ico {
+            visible: card.icon !== ""
+            x: parent.width - 28; y: 8
+            size: 18
+            source: card.icon
+            tint: Qt.rgba(1, 1, 1, 0.8)
         }
         Text {
             renderType: Text.CurveRendering
@@ -113,6 +121,28 @@ Item {
             Layout.maximumHeight: 84
             spacing: 8
 
+            StatCard {
+                visible: page.sh.weather.ok === true
+                Layout.preferredWidth: 1.3
+                title: page.sh.weather.place || "Hava"
+                value: page.sh.weather.ok ? page.sh.weather.temp + "°" : ""
+                sub: page.sh.weather.ok ? page.sh.weather.text : ""
+                icon: page.sh.weather.ok ? page.sh.weather.icon : ""
+                accent: "#ff9f0a"
+                bar: -1
+                // değerin sağında, tek satır: en yüksek / en düşük
+                Text {
+                    visible: page.sh.weather.ok === true
+                    renderType: Text.CurveRendering
+                    font.family: "Inter"
+                    anchors.right: parent.right; anchors.rightMargin: 12
+                    y: 30
+                    text: page.sh.weather.ok ? "↑" + page.sh.weather.hi + "° ↓" + page.sh.weather.lo + "°" : ""
+                    color: Qt.rgba(1, 1, 1, 0.6)
+                    font.pixelSize: 11
+                    font.features: { "tnum": 1 }
+                }
+            }
             StatCard {
                 title: "İşlemci"
                 value: page.ready ? page.st.cpu + "%" : "…"
@@ -212,6 +242,46 @@ Item {
                             color: Qt.rgba(1, 1, 1, 0.5)
                             font.pixelSize: 10
                         }
+                    }
+                }
+                // Telefon (KDE Connect): pil yüzdesi; dokununca telefon çalar
+                Rectangle {
+                    id: phoneChip
+                    readonly property var dev: sh.phone.present && sh.phone.devices.length > 0 ? sh.phone.devices[0] : null
+                    visible: dev !== null && sh.settings.phone
+                    Layout.preferredWidth: phoneRow.implicitWidth + 20
+                    Layout.preferredHeight: 30
+                    radius: 15
+                    color: phoneMa.containsMouse ? "#3a3a3c" : "#2c2c2e"
+                    opacity: dev && dev.reachable ? 1 : 0.45
+                    Row {
+                        id: phoneRow
+                        anchors.centerIn: parent
+                        spacing: 6
+                        Ico {
+                            anchors.verticalCenter: parent.verticalCenter
+                            source: sh.ic("isle-phone-symbolic")
+                            size: 14
+                            tint: phoneChip.dev && phoneChip.dev.charging ? "#30d158" : "white"
+                        }
+                        Text {
+                            renderType: Text.CurveRendering
+                            font.family: "Inter"
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: !phoneChip.dev ? "" : !phoneChip.dev.reachable ? "Bağlı değil"
+                                  : phoneChip.dev.battery >= 0 ? "%" + phoneChip.dev.battery : phoneChip.dev.name
+                            color: "white"
+                            font.pixelSize: 12
+                            font.weight: Font.DemiBold
+                            font.features: { "tnum": 1 }
+                        }
+                    }
+                    MouseArea {
+                        id: phoneMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        enabled: phoneChip.dev && phoneChip.dev.reachable
+                        onClicked: { sh.send("phone_ring", phoneChip.dev.id); sh.toast("Telefon çalıyor", "phone") }
                     }
                 }
                 CtlButton {

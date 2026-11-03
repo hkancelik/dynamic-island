@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Dynamic Island
+Comment=KDE Plasma için Dynamic Island
+Exec=@DIR@/launch.sh
+Icon=preferences-desktop-notification
+Categories=Utility;
+Terminal=false
