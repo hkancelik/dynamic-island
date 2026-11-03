@@ -8,7 +8,7 @@ RowLayout {
     id: row
 
     property string icon
-    property color badgeColor: "#2c2c2e"
+    property color badgeColor: Qt.rgba(1, 1, 1, 0.17)
     property color iconTint: "white"
     property real level: -1            // 0..1: rozetin çevresinde seviye halkası
     property color levelColor: "white"

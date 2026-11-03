@@ -31,12 +31,12 @@ Item {
     function titleOf(d) {
         if (d.title) return d.title
         var l = lines(d.text)
-        return l.length > 0 ? l[0] : "Yeni not"
+        return l.length > 0 ? l[0] : sh.t("Yeni not")
     }
     function previewOf(d) {
         var l = lines(d.text)
         var i = d.title ? 0 : 1      // elle başlık verildiyse ilk satır da önizlemede
-        return (l.length > i ? l[i] : "Ek metin yok")
+        return (l.length > i ? l[i] : sh.t("Ek metin yok"))
     }
     function openMenu(kind, item, mx, my, docId) {
         var p = item.mapToItem(page, mx, my)
@@ -60,10 +60,10 @@ Item {
     }
     function ago(ts) {
         var m = Math.floor((Date.now() - ts) / 60000)
-        if (m < 1) return "şimdi"
-        if (m < 60) return m + " dk"
+        if (m < 1) return sh.t("şimdi")
+        if (m < 60) return sh.t("%1 dk.short").arg(m)
         var h = Math.floor(m / 60)
-        return h < 24 ? h + " sa" : Math.floor(h / 24) + " gün"
+        return h < 24 ? sh.t("%1 sa.short").arg(h) : sh.t("%1 gün.short").arg(Math.floor(h / 24))
     }
 
     // Bekleyen yazıyı kaydet
@@ -130,7 +130,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 28
                 radius: 14
-                color: newMa.pressed ? "#48484a" : newMa.containsMouse ? "#3a3a3c" : "#2c2c2e"
+                color: newMa.pressed ? "#48484a" : newMa.containsMouse ? "#3a3a3c" : Qt.rgba(1, 1, 1, 0.17)
                 Row {
                     anchors.centerIn: parent
                     spacing: 6
@@ -144,7 +144,7 @@ Item {
                         renderType: Text.CurveRendering
                         font.family: "Inter"
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Yeni not"
+                        text: sh.t("Yeni not")
                         color: "white"
                         font.pixelSize: 12
                         font.weight: Font.DemiBold
@@ -210,7 +210,7 @@ Item {
                             selectedTextColor: "black"
                             selectByMouse: true
                             maximumLength: 60
-                            placeholderText: "Başlık"
+                            placeholderText: sh.t("Başlık")
                             placeholderTextColor: Qt.rgba(1, 1, 1, 0.4)
                             background: Rectangle { color: "transparent"; border.width: 0
                                 Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: sh.accent } }
@@ -269,7 +269,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             radius: 14
-            color: "#1c1c1e"
+            color: Qt.rgba(1, 1, 1, 0.11)
 
             ScrollView {
                 anchors.fill: parent
@@ -285,7 +285,7 @@ Item {
                     color: "white"
                     selectionColor: sh.accent
                     selectedTextColor: "black"
-                    placeholderText: "Notunu yaz…"
+                    placeholderText: sh.t("Notunu yaz…")
                     placeholderTextColor: Qt.rgba(1, 1, 1, 0.4)
                     wrapMode: TextEdit.Wrap
                     selectByMouse: true
@@ -317,7 +317,7 @@ Item {
                     renderType: Text.CurveRendering
                     font.family: "Inter"
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: "Not yok"
+                    text: sh.t("Not yok")
                     color: Qt.rgba(1, 1, 1, 0.6)
                     font.pixelSize: 13
                     font.weight: Font.DemiBold
@@ -326,7 +326,7 @@ Item {
                     renderType: Text.CurveRendering
                     font.family: "Inter"
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: "Yeni not ile başla"
+                    text: sh.t("Yeni not ile başla")
                     color: Qt.rgba(1, 1, 1, 0.4)
                     font.pixelSize: 11
                 }
@@ -350,7 +350,7 @@ Item {
         width: 150
         height: menuCol.implicitHeight + 8
         radius: 12
-        color: "#2c2c2e"
+        color: Qt.rgba(1, 1, 1, 0.17)
         border.width: 1
         border.color: "#3a3a3c"
         Column {
@@ -359,9 +359,9 @@ Item {
             width: parent.width - 8
             Repeater {
                 model: page.menuKind === "doc"
-                       ? [{ t: "Yeniden adlandır", a: "rename" }, { t: "Sil", a: "delete", red: true }]
-                       : [{ t: "Kes", a: "cut" }, { t: "Kopyala", a: "copy" }, { t: "Yapıştır", a: "paste" },
-                          { t: "Tümünü seç", a: "all" }]
+                       ? [{ t: sh.t("Yeniden adlandır"), a: "rename" }, { t: sh.t("Sil"), a: "delete", red: true }]
+                       : [{ t: sh.t("Kes"), a: "cut" }, { t: sh.t("Kopyala"), a: "copy" }, { t: sh.t("Yapıştır"), a: "paste" },
+                          { t: sh.t("Tümünü seç"), a: "all" }]
                 Rectangle {
                     required property var modelData
                     width: menuCol.width

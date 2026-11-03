@@ -1,0 +1,24 @@
+name: Bug report
+description: Something on the island doesn't work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, what happened instead? Screenshots help a lot.
+    validations:
+      required: true
+  - type: input
+    id: plasma
+    attributes:
+      label: Plasma / Qt / distro
+      placeholder: Plasma 6.5.2, Qt 6.10, CachyOS
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: "`journalctl --user -u dynamic-island -n 100` or the output of `./launch.sh`"
+      render: text

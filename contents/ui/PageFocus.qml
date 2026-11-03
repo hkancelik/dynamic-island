@@ -25,7 +25,7 @@ Item {
         property int max: 120
         signal changed(int v)
         width: 168; height: 36; radius: 18
-        color: "#1c1c1e"
+        color: Qt.rgba(1, 1, 1, 0.11)
         Text {
             renderType: Text.CurveRendering
             font.family: "Inter"
@@ -125,8 +125,8 @@ Item {
                     renderType: Text.CurveRendering
                     font.family: "Inter"
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: page.idle ? "Odak" : (page.f.phase === "break" ? "Mola" : "Odak")
-                          + (!page.idle && !page.f.running ? " · duraklatıldı" : "")
+                    text: page.idle ? sh.t("Odak") : (page.f.phase === "break" ? sh.t("Mola") : sh.t("Odak"))
+                          + (!page.idle && !page.f.running ? sh.t(" · duraklatıldı") : "")
                     color: page.idle ? Qt.rgba(1, 1, 1, 0.55) : sh.focusColor
                     font.pixelSize: 12
                     font.weight: Font.Medium
@@ -139,12 +139,12 @@ Item {
             Layout.alignment: Qt.AlignVCenter
             spacing: 8
             Stepper {
-                label: "Odak"
+                label: sh.t("Odak")
                 value: page.f.work
                 onChanged: v => sh.send("focus_set", { work: v })
             }
             Stepper {
-                label: "Mola"
+                label: sh.t("Mola")
                 value: page.f.brk
                 step: 5
                 min: 1
@@ -155,7 +155,7 @@ Item {
                 renderType: Text.CurveRendering
                 font.family: "Inter"
                 x: 14
-                text: page.f.round > 0 ? page.f.round + " odak tamamlandı" : "Odakta Rahatsız Etme açılır"
+                text: page.f.round > 0 ? sh.t("%1 odak tamamlandı").arg(page.f.round) : sh.t("Odakta Rahatsız Etme açılır")
                 color: Qt.rgba(1, 1, 1, 0.45)
                 font.pixelSize: 11
             }
@@ -170,21 +170,21 @@ Item {
             CtlButton {
                 width: 36; height: 36; iconSize: 15
                 visible: !page.idle
-                filled: true; fillColor: "#2c2c2e"; tint: "white"
+                filled: true; fillColor: Qt.rgba(1, 1, 1, 0.17); tint: "white"
                 icon: sh.ic("isle-forward-symbolic")
                 onClicked: sh.send("focus_skip")
             }
             CtlButton {
                 width: 36; height: 36; iconSize: 15
                 visible: !page.idle
-                filled: true; fillColor: "#2c2c2e"; tint: "white"
+                filled: true; fillColor: Qt.rgba(1, 1, 1, 0.17); tint: "white"
                 icon: sh.ic("isle-reset")
                 onClicked: sh.send("focus_reset")
             }
             Rectangle {
                 width: startText.implicitWidth + 50
                 height: 36; radius: 18
-                color: startMa.pressed ? "#48484a" : startMa.containsMouse ? "#3a3a3c" : "#2c2c2e"
+                color: startMa.pressed ? "#48484a" : startMa.containsMouse ? "#3a3a3c" : Qt.rgba(1, 1, 1, 0.17)
                 Row {
                     anchors.centerIn: parent
                     spacing: 7
@@ -199,7 +199,7 @@ Item {
                         renderType: Text.CurveRendering
                         font.family: "Inter"
                         anchors.verticalCenter: parent.verticalCenter
-                        text: page.f.running ? "Duraklat" : (page.idle ? "Başlat" : "Sürdür")
+                        text: page.f.running ? sh.t("Duraklat") : (page.idle ? sh.t("Başlat") : sh.t("Sürdür"))
                         color: "white"
                         font.pixelSize: 14
                         font.weight: Font.DemiBold

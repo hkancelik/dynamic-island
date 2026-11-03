@@ -8,7 +8,7 @@ Item {
     property var sh
 
     readonly property bool warm: sh.night.running && !sh.night.inhibited
-    readonly property var profileNames: ({ "power-saver": "Tasarruf", "balanced": "Dengeli", "performance": "Performans" })
+    readonly property var profileNames: ({ "power-saver": sh.t("Tasarruf"), "balanced": sh.t("Dengeli"), "performance": sh.t("Performans") })
 
     component SliderRow: RowLayout {
         id: row
@@ -101,7 +101,7 @@ Item {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 28
                     radius: 14
-                    color: outMa.containsMouse || sh.deviceMenu ? "#3a3a3c" : "#2c2c2e"
+                    color: outMa.containsMouse || sh.deviceMenu ? "#3a3a3c" : Qt.rgba(1, 1, 1, 0.17)
                     Row {
                         anchors.centerIn: parent
                         width: parent.width - 24
@@ -120,7 +120,7 @@ Item {
                             text: {
                                 for (var i = 0; i < sh.audio.sinks.length; i++)
                                     if (sh.audio.sinks[i].name === sh.audio["default"]) return sh.audio.sinks[i].desc
-                                return "Çıkış"
+                                return sh.t("Çıkış")
                             }
                             color: "white"
                             font.pixelSize: 12
@@ -144,7 +144,7 @@ Item {
                     Layout.preferredWidth: 104
                     Layout.preferredHeight: 28
                     radius: 14
-                    color: page.warm ? Qt.rgba(1, 0.84, 0.04, 0.18) : (nightMa.containsMouse ? "#3a3a3c" : "#2c2c2e")
+                    color: page.warm ? Qt.rgba(1, 0.84, 0.04, 0.18) : (nightMa.containsMouse ? "#3a3a3c" : Qt.rgba(1, 1, 1, 0.17))
                     Behavior on color { ColorAnimation { duration: 200 } }
                     Row {
                         anchors.centerIn: parent
@@ -159,7 +159,7 @@ Item {
                             renderType: Text.CurveRendering
                             font.family: "Inter"
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "Gece Işığı"
+                            text: sh.t("Gece Işığı")
                             color: page.warm || nightBtn.planned ? "#ffd60a" : "white"
                             font.pixelSize: 12
                             font.weight: Font.DemiBold
@@ -193,10 +193,10 @@ Item {
                 active: sh.ctl.wifiOn
                 accent: "#0a84ff"
                 icon: sh.ctl.wifiOn && sh.wifi.connected ? sh.ic("isle-wifi-symbolic") : sh.ic("isle-wifi-off-symbolic")
-                title: !sh.ctl.wifiOn ? "Wi-Fi" : (sh.wifi.connected ? (sh.wifi.ssid || "Bağlı") : "Bağlı değil")
-                subtitle: !sh.ctl.wifiOn ? "Kapalı"
-                        : !sh.wifi.connected ? "Ağ yok"
-                        : sh.wifi.type === "ethernet" ? "Kablolu" : "Sinyal %" + sh.wifi.signal
+                title: !sh.ctl.wifiOn ? "Wi-Fi" : (sh.wifi.connected ? (sh.wifi.ssid || sh.t("Bağlı")) : sh.t("Bağlı değil"))
+                subtitle: !sh.ctl.wifiOn ? sh.t("Kapalı")
+                        : !sh.wifi.connected ? sh.t("Ağ yok")
+                        : sh.wifi.type === "ethernet" ? sh.t("Kablolu") : sh.t("Sinyal %1%").arg(sh.wifi.signal)
                 onClicked: sh.send("wifi_toggle")
                 onRightClicked: sh.send("open_settings", "network")
             }
@@ -208,7 +208,7 @@ Item {
                 accent: "#0a84ff"
                 icon: sh.ctl.bt.on ? sh.ic("isle-bluetooth-symbolic") : sh.ic("isle-bluetooth-off-symbolic")
                 title: "Bluetooth"
-                subtitle: sh.ctl.bt.on ? (sh.ctl.bt.device || "Açık") : "Kapalı"
+                subtitle: sh.ctl.bt.on ? (sh.ctl.bt.device || sh.t("Açık")) : sh.t("Kapalı")
                 onClicked: sh.send("bt_toggle")
                 onRightClicked: sh.send("open_settings", "bluetooth")
             }
@@ -217,8 +217,8 @@ Item {
                 active: sh.ui.dnd
                 accent: "#5e5ce6"
                 icon: sh.ic("isle-moon")
-                title: "Rahatsız Etme"
-                subtitle: sh.ui.dnd ? "Açık" : "Kapalı"
+                title: sh.t("Rahatsız Etme")
+                subtitle: sh.ui.dnd ? sh.t("Açık") : sh.t("Kapalı")
                 onClicked: sh.send("toggle_dnd")
                 onRightClicked: sh.send("open_settings", "notifications")
             }
@@ -227,9 +227,9 @@ Item {
                 active: sh.power.profile !== "" && sh.power.profile !== "balanced"
                 accent: sh.power.profile === "performance" ? "#ff9f0a" : "#30d158"
                 icon: sh.battery.charging ? sh.ic("isle-bolt") : sh.ic("isle-battery-symbolic")
-                title: sh.battery.present ? "%" + sh.battery.level : "Güç"
+                title: sh.battery.present ? sh.pct(sh.battery.level) : sh.t("Güç")
                 subtitle: sh.power.profile ? (page.profileNames[sh.power.profile] || sh.power.profile)
-                        : (sh.battery.charging ? "Şarj oluyor" : "Pilde")
+                        : (sh.battery.charging ? sh.t("Şarj oluyor") : sh.t("Pilde"))
                 onClicked: sh.send("profile_cycle")
                 onRightClicked: sh.send("open_settings", "power")
             }

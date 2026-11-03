@@ -8,6 +8,8 @@ DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 export PYTHONDONTWRITEBYTECODE=1
 # Arayüz API belirtecini dosyadan okur (yalnızca yerel dosya okuma)
 export QML_XHR_ALLOW_FILE_READ=1
+# QML hataları günlüğe düşsün (yoksa terminal dışında journald'a gider ve "Did not load" dışında iz kalmaz)
+export QT_FORCE_STDERR_LOGGING=1
 TOKEN_FILE="${XDG_RUNTIME_DIR:-/tmp/dynamic-island-$(id -u)}/dynamic-island/token"
 rm -f "$TOKEN_FILE"
 

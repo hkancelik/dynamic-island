@@ -1,34 +1,46 @@
 import QtQuick
+import QtQuick.Effects
 
-// Sekme sayfası: seçilince geldiği yönden hafifçe kayarak belirir, ayrılırken karşı yöne kayıp solar.
-// Gelen sayfa, çıkan sayfanın solmasına fırsat vermek için kısa bir gecikmeyle başlar.
+// Sekme sayfası geçişi ("sıvı cam"): yeni sayfa sekmenin geldiği yönden yay (spring) ile kayar,
+// hafif bir bulanıklıktan netleşir ve çok az büyüyerek yerine oturur; çıkan sayfa karşı yöne
+// bulanıklaşarak solar. Yön, sekmelerin ekrandaki sırasına göre (sh.tabOrder); Ayarlar en sonda.
+// Bulanıklık katmanı yalnızca geçiş sürerken açıktır, durgunken hiç maliyeti yok.
 Item {
     id: w
 
     property int index
     property int current
+    property var order: []
     default property alias content: holder.data
 
     readonly property bool active: current === index
-    readonly property real slide: 18
+    readonly property real slide: 26
 
-    opacity: active ? 1 : 0
-    visible: opacity > 0
-    property real shift: active ? 0 : (current > index ? -slide : slide)
+    function pos(i) { var p = order.indexOf(i); return p >= 0 ? p : 100 + i }
 
-    Behavior on opacity {
-        SequentialAnimation {
-            PauseAnimation { duration: w.active ? 70 : 0 }
-            NumberAnimation { duration: w.active ? 260 : 110; easing.type: Easing.OutCubic }
+    // 0 = yerinde ve net, 1 = tamamen dışarıda
+    property real away: active ? 0 : 1
+    property real dir: 1          // +1: sağdan gelir / sağa gider
+    onCurrentChanged: dir = pos(current) > pos(index) ? -1 : 1
+
+    Behavior on away {
+        NumberAnimation {
+            duration: w.active ? 380 : 180
+            easing.type: w.active ? Easing.OutQuint : Easing.InCubic
         }
     }
-    Behavior on shift {
-        SequentialAnimation {
-            PauseAnimation { duration: w.active ? 70 : 0 }
-            NumberAnimation { duration: 320; easing.type: Easing.OutCubic }
-        }
+
+    opacity: 1 - away
+    visible: away < 0.999
+    scale: 1 - 0.018 * away
+    transform: Translate { x: (w.active ? -w.dir : w.dir) * w.slide * w.away }
+
+    layer.enabled: away > 0.004
+    layer.effect: MultiEffect {
+        blurEnabled: true
+        blur: Math.min(1, w.away * 1.3)
+        blurMax: 24
     }
-    transform: Translate { x: w.shift }
 
     Item {
         id: holder

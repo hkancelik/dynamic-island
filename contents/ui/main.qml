@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Shapes
 import QtQuick.Window
 import org.kde.layershell as LayerShell
+import "lang_en.js" as En
 
 Window {
     id: root
@@ -20,13 +21,23 @@ Window {
     flags: Qt.FramelessWindowHint
 
     LayerShell.Window.layer: LayerShell.Window.LayerOverlay
-    LayerShell.Window.anchors: LayerShell.Window.AnchorTop
+    // Konum (Ayarlar → Görünüm): ortada ya da sol/sağ kenara yakın. Panel açıkken pencere tüm ekranı
+    // kapladığı için kenar boşluğu o zaman çentiğin kendisine verilir (bkz. notch.x).
+    readonly property string position: layout.position || "center"
+    readonly property int edgeGap: 28
+    LayerShell.Window.anchors: position === "left" ? LayerShell.Window.AnchorTop | LayerShell.Window.AnchorLeft
+                             : position === "right" ? LayerShell.Window.AnchorTop | LayerShell.Window.AnchorRight
+                             : LayerShell.Window.AnchorTop
+    LayerShell.Window.margins.left: position === "left" && !capture ? edgeGap : 0
+    LayerShell.Window.margins.right: position === "right" && !capture ? edgeGap : 0
     LayerShell.Window.wantsToBeOnActiveScreen: false
     LayerShell.Window.scope: "dynamic-island"
     LayerShell.Window.exclusionZone: -1
     // Klavye yalnızca panel açıkken (not yazmak için) ve tıklayınca odak alır
-    LayerShell.Window.keyboardInteractivity: panelOpen ? LayerShell.Window.KeyboardInteractivityOnDemand
-                                                       : LayerShell.Window.KeyboardInteractivityNone
+    // Komut paleti açıkken klavye hemen adaya gelsin (yazmaya başlamak için tıklamak gerekmesin)
+    LayerShell.Window.keyboardInteractivity: paletteOpen ? LayerShell.Window.KeyboardInteractivityExclusive
+                                           : panelOpen ? LayerShell.Window.KeyboardInteractivityOnDemand
+                                           : LayerShell.Window.KeyboardInteractivityNone
 
     // Pencere, ekran ve layer-shell ayarları uygulandıktan sonra gösterilmeli (sıra önemli)
     property bool placed: false
@@ -34,16 +45,34 @@ Window {
 
     Item {
         focus: true
-        Keys.onEscapePressed: root.panelOpen = false
+        Keys.onEscapePressed: { root.panelOpen = false; root.paletteOpen = false }
     }
 
     readonly property string endpoint: "http://127.0.0.1:47615"
+
+    // Dil: Ayarlar'dan (config.json "language": auto|en|tr); otomatikte sistem dili Türkçe ise Türkçe
+    // Yeni dil: lang_xx.js ekle ve buraya yaz. Türkçe kaynak dildir, sözlüğü yoktur.
+    readonly property var dicts: ({ en: En.dict })
+    readonly property string sysLang: Qt.locale().name.split("_")[0]
+    readonly property string lang: settings.language === "tr" || dicts[settings.language] ? settings.language
+                                 : sysLang === "tr" || dicts[sysLang] ? sysLang : "en"
+    readonly property var locale: Qt.locale(lang === "tr" ? "tr_TR" : Qt.locale().name.indexOf("en") === 0 ? Qt.locale().name : "en_US")
+    // Arayüz metni: kaynak Türkçe; seçili dilde çevirisi yoksa Türkçe kalır. %1, %2… için .arg()
+    function t(s) {
+        if (lang === "tr") return s.replace(/\.short$/, "")
+        var d = dicts[lang]
+        var e = d ? d[s] : undefined
+        return e !== undefined ? e : s.replace(/\.short$/, "")
+    }
+    // Yüzde: Türkçede %62, İngilizcede 62%
+    function pct(n) { return lang === "tr" ? "%" + n : n + "%" }
     readonly property var calColors: ["#6ea8fe", "#30d158", "#ffd60a", "#bf5af2", "#ff375f"]
 
     // Vurgu rengi: çalan parçanın albüm kapağından; kapak yoksa sabit, yumuşak bir mavi.
     // Anlamsal renkler (kırmızı = uyarı/kayıt, sarı = sıcak/Gece Işığı, yeşil = şarj) ayrıdır.
-    readonly property color accentDefault: "#6ea8fe"
-    property color accent: accentExtractor.result
+    readonly property bool accentFixed: /^#[0-9a-fA-F]{6}$/.test(layout.accent || "")
+    readonly property color accentDefault: accentFixed ? layout.accent : "#6ea8fe"
+    property color accent: accentFixed ? accentDefault : accentExtractor.result
     Behavior on accent { ColorAnimation { duration: 700; easing.type: Easing.OutCubic } }
     AccentExtractor {
         id: accentExtractor
@@ -89,11 +118,85 @@ Window {
     // Ayarlar sayfasının gösterdiği değerler (arka uç config.json'dan yayınlar)
     property var settings: ({ suppress_plasma_popups: true, hide_in_fullscreen: true, clipboard_history: true,
                               lyrics: true, meeting_alerts: true, privacy_dots: true, weather_enabled: true, phone: true,
+                              spectrum: true,
                               claudeHooks: false,
-                              accounts: [], calendars: 0, shortcuts: {} })
+                              accounts: [], calendars: 0, shortcuts: {}, language: "auto",
+                              layout: { tabs: [], hidden: [], open: "last", position: "center", accent: "auto" } })
+    readonly property var layout: settings.layout || ({})
+    // Malzeme: minimal (varsayılan, sade derinlik) | ambient (canlı renkler) | black (düz siyah)
+    readonly property string material: layout.material === "ambient" || layout.material === "black" ? layout.material : "minimal"
+    readonly property bool ambient: material !== "black"
+    readonly property bool vivid: material === "ambient"
+    // Müzik ışıklarının rengi: canlı modda vurgu rengi, sade modda beyaz
+    readonly property color glowColor: vivid ? accent : "white"
+    // Bas düzeyi (0..1): alt ışık ve kenar ışığı müziğe göre nefes alır
+    readonly property real bass: {
+        var l = spectrum
+        if (!l || l.length < 6) return 0
+        return Math.min(1, (l[1] + l[2] + l[3] + l[4]) / 400)
+    }
+
+    // Sekmeler: sayfa numarası sabit (0 Müzik … 7 Araçlar, 8 Ayarlar), görünen sıra ve gizlilik ayardan.
+    readonly property var tabKeys: ["music", "notifications", "focus", "calendar", "controls", "apps", "system", "tools"]
+    // Sürükleyip bırakınca arka uçtan yanıt gelene kadar yeni sıra hemen görünsün
+    property var pendingTabs: null
+    onSettingsChanged: pendingTabs = null
+    // Görünen sekmelerin sayfa numaraları, sırayla
+    readonly property var tabOrder: {
+        if (pendingTabs) return pendingTabs
+        var keys = (layout.tabs && layout.tabs.length) ? layout.tabs : tabKeys
+        var hidden = layout.hidden || []
+        var out = []
+        for (var i = 0; i < keys.length; i++) {
+            var id = tabKeys.indexOf(keys[i])
+            if (id >= 0 && hidden.indexOf(keys[i]) < 0) out.push(id)
+        }
+        return out.length ? out : [0]
+    }
+    // Yeni sıra/gizli listesi (sayfa numaralarıyla) -> arka uç
+    function saveTabs(order, hiddenIds) {
+        var tabs = [], hidden = []
+        for (var i = 0; i < order.length; i++) tabs.push(tabKeys[order[i]])
+        for (var j = 0; j < hiddenIds.length; j++) { tabs.push(tabKeys[hiddenIds[j]]); hidden.push(tabKeys[hiddenIds[j]]) }
+        pendingTabs = order.slice()
+        send("set_layout", { tabs: tabs, hidden: hidden })
+    }
+    // Tüm sekmeler (gizliler dahil) ayardaki sırayla
+    readonly property var allTabIds: {
+        var keys = (layout.tabs && layout.tabs.length) ? layout.tabs : tabKeys
+        var out = []
+        for (var i = 0; i < keys.length; i++) { var id = tabKeys.indexOf(keys[i]); if (id >= 0 && out.indexOf(id) < 0) out.push(id) }
+        for (var j = 0; j < tabKeys.length; j++) if (out.indexOf(j) < 0) out.push(j)
+        return out
+    }
+    // Ayarlar → Sekmeler: tam sıra (gizliler yerinde kalır) ve gizli olanlar
+    function saveTabOrder(fullIds, hiddenIds) {
+        var tabs = [], hidden = [], visible = []
+        for (var i = 0; i < fullIds.length; i++) {
+            tabs.push(tabKeys[fullIds[i]])
+            if (hiddenIds.indexOf(fullIds[i]) >= 0) hidden.push(tabKeys[fullIds[i]])
+            else visible.push(fullIds[i])
+        }
+        if (!visible.length) return
+        pendingTabs = visible
+        send("set_layout", { tabs: tabs, hidden: hidden })
+    }
+    function hiddenTabIds() {
+        var out = []
+        for (var i = 0; i < tabKeys.length; i++) if (tabOrder.indexOf(i) < 0) out.push(i)
+        return out
+    }
+    // Panel açılırken gösterilecek sekme: ayara göre ilk sekme ya da son açılan (gizlendiyse ilk)
+    function openingTab() {
+        if (layout.open === "first") return tabOrder[0]
+        return tab === 8 || tabOrder.indexOf(tab) >= 0 ? tab : tabOrder[0]
+    }
     // Claude Code: bekleyen izin istekleri (en eskisi önce) ve son "bitti" haberi
     property var agents: ({ asks: [], done: { seq: 0 } })
     readonly property var ask: agents.asks.length > 0 ? agents.asks[0] : null
+    // Canlı Etkinlikler (island komutu / POST /activity): süren işler ve son biten
+    property var live: ({ items: [], done: { seq: 0 } })
+    readonly property var act: live.items.length > 0 ? live.items[live.items.length - 1] : null
     // Son sistem uyarısı (Caps Lock, Bluetooth, internet)
     property var alertD: ({ kind: "", seq: 0 })
     readonly property var privDots: {
@@ -105,6 +208,34 @@ Window {
         return d
     }
     property var lyr: ({ track: "", status: "none", lines: [] })
+    // Gerçek ses spektrumu: yalnızca çubuklar görünürken ve müzik çalarken sorulur
+    property var spectrum: []
+    readonly property bool spectrumWant: playing && settings.spectrum !== false && fullscreen === false && (
+        (mode === "idle" && rightBars) || mode === "media" || (mode === "panel" && tab === 0 && !lyricsOn))
+    onSpectrumWantChanged: if (!spectrumWant) spectrum = []
+    property bool spectrumBusy: false
+    function fetchSpectrum() {
+        if (spectrumBusy || !token) return
+        spectrumBusy = true
+        var x = new XMLHttpRequest()
+        x.open("GET", endpoint + "/spectrum")
+        x.setRequestHeader("X-Island", token)
+        x.timeout = 1000
+        x.onreadystatechange = function () {
+            if (x.readyState !== XMLHttpRequest.DONE) return
+            spectrumBusy = false
+            if (x.status !== 200 || !spectrumWant) return
+            try { spectrum = JSON.parse(x.responseText).b || [] } catch (e) { spectrum = [] }
+        }
+        x.send()
+    }
+    Timer {
+        // kapalı adada 4 küçük çubuk için 20 kare/sn yeter; açık görünümlerde 30
+        interval: root.mode === "idle" ? 50 : 33
+        repeat: true
+        running: root.spectrumWant
+        onTriggered: root.fetchSpectrum()
+    }
     readonly property bool lyricsWant: panelOpen && tab === 0 && lyricsOn && hasMedia && settings.lyrics
     onLyricsWantChanged: send("lyrics_want", lyricsWant)
     readonly property bool focusOn: pomo.phase !== "idle"
@@ -150,16 +281,20 @@ Window {
     // Mod
     // ------------------------------------------------------------------
     property bool panelOpen: false
+    property bool paletteOpen: false    // komut paleti (Meta+Alt+Space, island palette)
+    onPaletteOpenChanged: if (paletteOpen) panelOpen = false
     property int toolsSub: 0            // Araçlar sekmesindeki bölüm: 0 Pano, 1 Anımsatıcı, 2 Raf, 3 Notlar
+    property int settingsSub: 0         // Ayarlar bölümü: 0 Genel, 1 Sekmeler, 2 Görünüm
     property int tab: 0                 // 0 Müzik, 1 Bildirim, 2 Odak, 3 Takvim, 4 Kontrol, 5 Uygulama, 6 Sistem, 7 Araçlar
     property bool hovered: false
     property string flashKind: ""       // volume | charge | track | notif | event
     property string chargeKind: "charging"
     property var banner: ({})
 
-    readonly property bool isHidden: ui.hidden && !peek && !panelOpen && !dropHover && flashKind === ""
+    readonly property bool isHidden: ui.hidden && !peek && !panelOpen && !paletteOpen && !dropHover && flashKind === ""
 
     readonly property string mode: {
+        if (paletteOpen) return "palette"
         if (panelOpen) return "panel"
         if (dropHover) return "drop"
         if (ask !== null) return "ask"
@@ -168,14 +303,18 @@ Window {
         if (flashKind === "alert") return "alert"
         if (flashKind === "volume") return "volume"
         if (flashKind === "charge") return "charge"
-        if (flashKind === "track" || (hovered && hasMedia)) return "media"
+        if (flashKind === "track") return "media"
+        if ((flashKind === "live" || hovered) && live.items.length > 0) return "live"
+        if (hovered && hasMedia) return "media"
         return "idle"
     }
 
     // Kapalı ada: [sol yuva] saat [sağ yuva]. Saat ortada kalsın diye iki yuva eşit genişlikte.
-    readonly property string leftSlot: rec.state !== "idle" ? "rec" : hasMedia ? "art" : focusOn ? "ring" : unread > 0 ? "dot" : ""
+    readonly property string leftSlot: rec.state !== "idle" ? "rec" : act !== null ? "act" : hasMedia ? "art"
+                                     : focusOn ? "ring" : unread > 0 ? "dot" : ""
     readonly property string rightText: rec.state === "recording" ? fmt(secTick - rec.since)
-                                      : rec.state !== "idle" ? "" : focusOn ? mmss(focusLeft) : ""
+                                      : rec.state !== "idle" ? "" : act !== null ? actValue(act)
+                                      : focusOn ? mmss(focusLeft) : ""
     readonly property bool rightBars: hasMedia && rec.state === "idle"
     readonly property int privW: privDots.length ? privDots.length * 11 - 4 : 0
     readonly property int slotW: {
@@ -190,15 +329,17 @@ Window {
     readonly property real panelScale: 1
     readonly property int panelW: lyricsWant ? 760 : 600
     // Ayarlar çok satır içerir: o sekmede panel daha yüksek
-    readonly property int panelH: tab === 8 ? 292 : 224
+    readonly property int panelH: tab === 8 ? 372 : 224
 
     readonly property int islandW: {
         switch (mode) {
         case "panel": return panelW
+        case "palette": return 640
         case "drop": return 300
         case "toast": return Math.min(420, Math.max(260, toastMeasure.implicitWidth + 32 + 10 + 40))
         case "banner": return 440
         case "media": return 400
+        case "live": return 440
         case "volume": return 330
         case "charge": return 300
         case "alert": return 330
@@ -211,10 +352,12 @@ Window {
         // Tüm sekmelerde aynı yükseklik. Müzik çalarken Ana sayfa medya kartı + her ek ekran için
         // bir parlaklık satırı kadar uzar; çalmıyorken en uzun sayfanın (Sistem) sığdığı boy.
         case "panel": return panelH
+        case "palette": return paletteView.wantH
         case "drop": return 56
         case "toast": return 52
         case "banner": return 64
         case "media": return 84
+        case "live": return 16 + Math.min(3, live.items.length) * 52
         case "volume": return 44
         case "charge": return 56
         case "alert": return 56
@@ -226,7 +369,7 @@ Window {
     // Pencere: büyürken anında (yay animasyonunun taşması için boşlukla), animasyon bitince
     // çentiğe sıkıca daralır; böylece altındaki uygulamaların tıklamasını engellemez.
     // Panel açıkken tüm ekranı kaplar (boş alana tıklayınca panel kapansın diye).
-    readonly property bool capture: panelOpen && !draggingOut
+    readonly property bool capture: (panelOpen || paletteOpen) && !draggingOut
     readonly property int wantW: capture ? Screen.width : islandW + 2 * ear + 60
     readonly property int wantH: capture ? Screen.height : (isHidden ? 6 : islandH + 30)
     readonly property int restW: capture ? Screen.width : islandW + 2 * ear
@@ -261,17 +404,17 @@ Window {
 
     function ago(ts) {
         var s = Math.max(0, (nowMs - ts) / 1000)
-        if (s < 60) return "şimdi"
-        if (s < 3600) return Math.floor(s / 60) + " dk"
-        if (s < 86400) return Math.floor(s / 3600) + " sa"
-        return Math.floor(s / 86400) + " g"
+        if (s < 60) return t("şimdi")
+        if (s < 3600) return t("%1 dk.short").arg(Math.floor(s / 60))
+        if (s < 86400) return t("%1 sa.short").arg(Math.floor(s / 3600))
+        return t("%1 g.short").arg(Math.floor(s / 86400))
     }
 
     function untilText(ev) {
         var m = Math.ceil((ev.start - nowMs) / 60000)
-        if (m <= 0) return "Şimdi · " + clockOf(ev.start)
-        if (m < 60) return m + " dk sonra · " + clockOf(ev.start)
-        return clockOf(ev.start) + " · " + Math.floor(m / 60) + " sa " + (m % 60) + " dk"
+        if (m <= 0) return t("Şimdi · %1").arg(clockOf(ev.start))
+        if (m < 60) return t("%1 dk sonra · %2").arg(m).arg(clockOf(ev.start))
+        return t("%1 · %2 sa %3 dk").arg(clockOf(ev.start)).arg(Math.floor(m / 60)).arg(m % 60)
     }
 
     // Etkinliğin "cal" alanı: takvimin kendi rengi ("#rrggbb", CalDAV) ya da palet sırası
@@ -331,6 +474,31 @@ Window {
 
     // Tek renk ikonlar (contents/icons)
     function ic(n) { return Qt.resolvedUrl("../icons/" + n + ".svg") }
+
+    // -- Canlı Etkinlikler
+    readonly property var actIcons: ({
+        build: "run-build", download: "download", upload: "upload", timer: "isle-timer",
+        test: "isle-tasks", deploy: "isle-send-symbolic", sync: "isle-update-symbolic",
+        terminal: "isle-terminal-symbolic", music: "isle-music", mail: "mail-message",
+        check: "isle-check-symbolic", warning: "isle-warning-symbolic", info: "isle-info-symbolic"
+    })
+    function actIcon(name) {
+        var n = actIcons[name || "info"] || name
+        return n.indexOf("isle-") === 0 ? ic(n) : n
+    }
+    function actColor(a) { return a && a.color ? a.color : accent }
+    // 0..1 ilerleme; geri sayımda kalan oran; belirsizse -1
+    function actFrac(a) {
+        if (!a) return -1
+        if (a.end > 0) return Math.max(0, Math.min(1, (a.end - secTick) / Math.max(1, a.end - a.start)))
+        return a.progress
+    }
+    function actValue(a) {
+        if (a.value) return a.value
+        if (a.end > 0) return mmss(Math.max(0, a.end - secTick))
+        if (a.progress >= 0) return Math.round(a.progress * 100) + "%"
+        return fmt(secTick - a.start)
+    }
 
     function baseName(p) { return String(p).split("/").pop() }
 
@@ -433,7 +601,9 @@ Window {
         var k = banner.kind
         flashKind = ""
         if (k === "record") { send("open_recording"); return }
-        if (k === "agent") return
+        if (k === "agent" || k === "activity") return
+        // Bildirim: uygulamayı aç (varsa ilgili sohbet/e-posta); ada kapalı kalır
+        if (k === "notif" && banner.id) { send("notif_open", banner.id); return }
         tab = k === "event" ? 3 : 1
         panelOpen = true
     }
@@ -471,10 +641,21 @@ Window {
         if (s.privacy !== undefined) priv = s.privacy
         if (s.alert !== undefined) alertD = s.alert
         if (s.agents !== undefined) agents = s.agents
+        if (s.activities !== undefined) {
+            // Yeni bir etkinlik başlayınca ada kısa süre açılıp onu gösterir
+            var known = {}, fresh = false
+            for (var ai = 0; ai < live.items.length; ai++) known[live.items[ai].id] = true
+            for (var aj = 0; aj < s.activities.items.length; aj++)
+                if (!known[s.activities.items[aj].id]) fresh = true
+            live = s.activities
+            secTick = Date.now()
+            if (fresh && !first && !panelOpen && flashKind !== "notif" && flashKind !== "event")
+                flash("live", 3500)
+        }
         if (s.settings !== undefined) settings = s.settings
         if (s.calendar !== undefined) { cal = s.calendar; updateNext() }
         if (s.calAdd !== undefined && s.calAdd.seq !== calAddSeq) {
-            if (calAddSeq >= 0) toast(s.calAdd.ok ? "Eklendi · " + s.calAdd.msg : "Eklenemedi: " + s.calAdd.msg,
+            if (calAddSeq >= 0) toast(s.calAdd.ok ? root.t("Eklendi · ") + s.calAdd.msg : root.t("Eklenemedi: ") + s.calAdd.msg,
                                       s.calAdd.ok ? "dialog-ok-apply" : "dialog-warning")
             calAddSeq = s.calAdd.seq
         }
@@ -490,7 +671,7 @@ Window {
                     markSeen()
                 } else if (!ui.dnd) {
                     var n = notifs.items[0]
-                    banner = { kind: "notif", icon: n.icon, app: n.app, title: n.title, body: n.body, ts: n.ts }
+                    banner = { kind: "notif", id: n.id, icon: n.icon, app: n.app, title: n.title, body: n.body, ts: n.ts }
                     flash("notif", 5500)
                 }
             }
@@ -501,10 +682,17 @@ Window {
 
         // Kısayol (Meta+Alt+I) ile panel aç/kapat
         if (s.panelReq !== undefined && s.panelReq !== o.panelReq) panelOpen = !panelOpen
+        if (s.paletteReq !== undefined && s.paletteReq.seq !== o.paletteReq.seq) {
+            if (s.paletteReq.q) { paletteOpen = true; paletteView.prefill(s.paletteReq.q) }
+            else paletteOpen = !paletteOpen
+        }
         if (s.tabReq !== undefined && s.tabReq.seq !== o.tabReq.seq) {
             tab = Math.max(0, Math.min(8, s.tabReq.tab))
             if (s.tabReq.lyrics !== undefined) lyricsOn = s.tabReq.lyrics
-            if (s.tabReq.sub !== undefined) toolsSub = Math.max(0, Math.min(3, s.tabReq.sub))
+            if (s.tabReq.sub !== undefined) {
+                if (tab === 8) settingsSub = Math.max(0, Math.min(2, s.tabReq.sub))
+                else toolsSub = Math.max(0, Math.min(3, s.tabReq.sub))
+            }
             panelOpen = true
         }
 
@@ -512,9 +700,20 @@ Window {
         if (s.agents !== undefined && o.agents !== undefined && s.agents.done.seq !== o.agents.done.seq) {
             var dn = s.agents.done
             banner = { kind: "agent", icon: ic("isle-claude"), app: "Claude Code",
-                       title: (dn.project ? dn.project + " · " : "") + "Claude Code bitirdi",
+                       title: (dn.project ? dn.project + " · " : "") + root.t("Claude Code bitirdi"),
                        body: dn.message || "", ts: Date.now() }
             if (!panelOpen) flash("notif", 7000)
+        }
+
+        // Canlı Etkinlik bitti / betikten bildirim
+        if (s.activities !== undefined && o.activities !== undefined && s.activities.done.seq !== o.activities.done.seq) {
+            var ad = s.activities.done
+            if (!(ui.dnd && ad.state === "info")) {
+                banner = { kind: "activity", state: ad.state, icon: ad.icon || "", color: ad.color || "",
+                           title: ad.title || "", body: ad.icon === "timer" && ad.state === "done"
+                               ? root.t("Süre doldu · ") + ad.took : (ad.subtitle || ""), ts: Date.now() }
+                if (!panelOpen) flash("notif", ad.state === "failed" || ad.icon === "timer" ? 9000 : 6000)
+            }
         }
 
         // Sistem uyarısı (bildirim/etkinlik gösterilirken araya girmez)
@@ -525,7 +724,7 @@ Window {
 
         // Odak sayacı: aşama değişti
         if (s.focus !== undefined && o.focus !== undefined && s.focus.seq !== o.focus.seq)
-            toast(s.focus.phase === "break" ? "Mola zamanı · " + s.focus.brk + " dk" : "Odak zamanı · " + s.focus.work + " dk",
+            toast(s.focus.phase === "break" ? t("Mola zamanı · %1 dk").arg(s.focus.brk) : t("Odak zamanı · %1 dk").arg(s.focus.work),
                   "chronometer")
 
         // Ekran kaydı: durum bildirimleri
@@ -535,8 +734,8 @@ Window {
             else if (nr.state === "recording" && or.state !== "recording") toast("Ekran kaydı başladı", "media-record")
             else if (nr.state === "saving" && or.state === "recording") toast("Kayıt kaydediliyor…", "media-record")
             if (nr.last && nr.last !== or.last) {
-                banner = { kind: "record", icon: "video-x-generic", app: "Ekran kaydı",
-                           title: "Kayıt kaydedildi", body: baseName(nr.last) + " · klasörü açmak için dokun", ts: Date.now() }
+                banner = { kind: "record", icon: "video-x-generic", app: root.t("Ekran kaydı"),
+                           title: root.t("Kayıt kaydedildi"), body: baseName(nr.last) + root.t(" · klasörü açmak için dokun"), ts: Date.now() }
                 flash("notif", 7000)
             } else if (nr.error && nr.error !== or.error) {
                 toast(nr.error, "dialog-warning")
@@ -637,10 +836,10 @@ Window {
             var d = new Date()
             var c = root.clockOf(d.getTime())
             if (c !== root.clock) root.clock = c
-            if (root.rec.state === "recording") root.secTick = d.getTime()
+            if (root.rec.state === "recording" || root.live.items.length > 0) root.secTick = d.getTime()
             if (root.pomo.running) root.focusNow = d.getTime()
-            var t = Qt.locale("tr_TR").toString(d, "dddd, d MMMM")
-            if (t !== root.dateText) root.dateText = t
+            var dt = root.locale.toString(d, "dddd, d MMMM")
+            if (dt !== root.dateText) root.dateText = dt
         }
     }
     // Göreli zamanlar ve etkinlik uyarıları
@@ -679,8 +878,8 @@ Window {
     // Panel açıkken pencere tüm ekranı kaplar; boş alana tık paneli kapatır
     MouseArea {
         anchors.fill: parent
-        enabled: root.panelOpen
-        onClicked: root.panelOpen = false
+        enabled: root.panelOpen || root.paletteOpen
+        onClicked: { root.panelOpen = false; root.paletteOpen = false }
     }
 
     // Çentik: ekranın üst kenarına yapışık siyah gövde + iki yanda içbükey "kulaklar".
@@ -692,7 +891,10 @@ Window {
         height: island.height
         anchors.top: parent.top
         anchors.topMargin: root.isHidden ? -(height - 3) : 0
-        anchors.horizontalCenter: parent.horizontalCenter
+        // Ortada; sol/sağda pencere kenara yaslıdır (panel açıkken tüm ekran: boşluk burada verilir)
+        x: root.position === "left" ? (root.capture ? root.edgeGap : 0)
+         : root.position === "right" ? root.width - width - (root.capture ? root.edgeGap : 0)
+         : (root.width - width) / 2
         Behavior on anchors.topMargin { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
 
         Shape {
@@ -718,7 +920,57 @@ Window {
                 PathLine { x: outline.e; y: outline.e }
                 PathArc { x: 0; y: 0; radiusX: outline.e; radiusY: outline.e; direction: PathArc.Counterclockwise }
             }
+            // Kenar ışığı (ambiyans): gövdeyi düz siyah bir kesik olmaktan çıkarır; renksiz, çok ince.
+            // Üst kenar ekrana yapışık olduğu için yalnızca yanlar ve alt çizilir.
+            ShapePath {
+                id: rim
+                readonly property real e: root.ear
+                readonly property real w: island.width
+                readonly property real h: island.height - 0.5
+                readonly property real r: Math.max(1, outline.r - 0.5)
+                readonly property bool lit: root.vivid && root.playing && root.mode !== "idle"
+                readonly property color tint: lit ? root.accent : "white"
+                fillColor: "transparent"
+                strokeWidth: root.ambient ? 1 : 0
+                strokeColor: Qt.rgba(tint.r, tint.g, tint.b, !root.ambient ? 0 : lit ? 0.30 : root.mode === "idle" ? 0.10 : 0.13)
+                startX: rim.e + 0.5; startY: rim.e
+                PathLine { x: rim.e + 0.5; y: rim.h - rim.r }
+                PathArc { x: rim.e + 0.5 + rim.r; y: rim.h; radiusX: rim.r; radiusY: rim.r; direction: PathArc.Counterclockwise }
+                PathLine { x: rim.e + rim.w - 0.5 - rim.r; y: rim.h }
+                PathArc { x: rim.e + rim.w - 0.5; y: rim.h - rim.r; radiusX: rim.r; radiusY: rim.r; direction: PathArc.Counterclockwise }
+                PathLine { x: rim.e + rim.w - 0.5; y: rim.e }
+            }
         }
+
+    // Gizli modda da süren Canlı Etkinlik görünsün: kenarda kalan ince şeritte ilerleme çizgisi
+    Rectangle {
+        visible: root.isHidden && root.act !== null
+        anchors.bottom: parent.bottom
+        x: root.ear + 6
+        width: Math.max(0, island.width - 12)
+        height: 2
+        radius: 1
+        color: Qt.rgba(1, 1, 1, 0.12)
+        Rectangle {
+            readonly property real f: root.actFrac(root.act)
+            height: parent.height
+            radius: 1
+            color: root.actColor(root.act)
+            width: f < 0 ? parent.width * 0.3 : parent.width * f
+            x: f < 0 ? hairSweep.pos * (parent.width - width) : 0
+            Behavior on width { NumberAnimation { duration: 300 } }
+        }
+        Item {
+            id: hairSweep
+            property real pos: 0
+            SequentialAnimation on pos {
+                running: root.isHidden && root.act !== null && root.actFrac(root.act) < 0
+                loops: Animation.Infinite
+                NumberAnimation { from: 0; to: 1; duration: 900; easing.type: Easing.InOutSine }
+                NumberAnimation { from: 1; to: 0; duration: 900; easing.type: Easing.InOutSine }
+            }
+        }
+    }
 
     Rectangle {
         id: island
@@ -731,6 +983,21 @@ Window {
 
         Behavior on width { SpringAnimation { spring: 3.4; damping: 0.3; epsilon: 0.3 } }
         Behavior on height { SpringAnimation { spring: 3.4; damping: root.mode === "panel" ? 0.36 : 0.3; epsilon: 0.3 } }
+
+        Ambient {
+            anchors.fill: parent
+            visible: root.ambient
+            art: root.hasMedia ? (root.media.artUrl || "") : ""
+            accent: root.accent
+            radius: outline.r
+            vivid: root.vivid
+            glow: !root.ambient ? 0
+                : root.mode === "panel" ? (root.hasMedia && root.tab === 0 ? (root.vivid ? 1 : 0.9) : (root.vivid ? 0.55 : 0.5))
+                : root.mode === "media" ? (root.vivid ? 0.9 : 0.8)
+                : 0
+            // kapalı adada hafif, açık görünümlerde daha belirgin
+            bass: root.ambient && root.playing ? root.bass * (root.mode === "idle" ? 0.85 : 0.6) : 0
+        }
 
         // Geçici görünümlerde (bildirim, toast, uyarı) kalan süreyi gösteren ince çizgi: ortaya doğru eriyip biter
         Rectangle {
@@ -797,7 +1064,7 @@ Window {
                 if (m.button === Qt.LeftButton) {
                     if (root.mode === "banner") root.openFromBanner()
                     else {
-                        if (!root.panelOpen) root.tab = root.tab   // son sekme korunur
+                        if (!root.panelOpen) root.tab = root.openingTab()
                         root.panelOpen = !root.panelOpen
                     }
                 } else if (root.mode === "banner") {
@@ -847,6 +1114,14 @@ Window {
                         NumberAnimation { to: 0.3; duration: 650 }
                         NumberAnimation { to: 1; duration: 650 }
                     }
+                }
+                ActRing {     // Canlı Etkinlik
+                    visible: root.leftSlot === "act"
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 18; height: 18
+                    frac: root.actFrac(root.act)
+                    color: root.actColor(root.act)
+                    live: idleView.on
                 }
                 ArtImage {    // çalan şarkının kapağı
                     visible: root.leftSlot === "art"
@@ -904,6 +1179,7 @@ Window {
                 Bars {
                     visible: root.rightBars
                     playing: root.playing
+                    levels: root.spectrum
                     live: idleView.on
                     anchors.verticalCenter: parent.verticalCenter
                 }
@@ -913,7 +1189,7 @@ Window {
                     visible: root.rightText !== ""
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.rightText
-                    color: root.rec.state !== "idle" ? "#ff6961" : root.focusColor
+                    color: root.rec.state !== "idle" ? "#ff6961" : root.act !== null ? root.actColor(root.act) : root.focusColor
                     font.pixelSize: 15
                     font.weight: Font.DemiBold
                     font.letterSpacing: -0.2
@@ -949,18 +1225,30 @@ Window {
             id: bannerView
             on: root.mode === "banner"
             readonly property bool isEvent: root.banner.kind === "event"
+            readonly property bool isAct: root.banner.kind === "activity"
+            readonly property bool badged: isEvent || isAct
             width: 440; height: 64
 
             PeekRow {
                 anchors.fill: parent
                 anchors.leftMargin: 18
                 anchors.rightMargin: 18
-                icon: bannerView.isEvent ? root.ic("isle-calendar") : ""
-                badgeColor: bannerView.isEvent ? root.calColor(root.banner.cal) : "#1c1c1e"
+                icon: bannerView.isEvent ? root.ic("isle-calendar")
+                    : !bannerView.isAct ? ""
+                    : root.banner.state === "done" && root.banner.icon !== "timer" ? root.ic("isle-check-symbolic")
+                    : root.banner.state === "failed" ? root.ic("isle-warning-symbolic")
+                    : root.banner.state === "cancelled" ? root.ic("isle-close-symbolic")
+                    : root.actIcon(root.banner.icon)
+                badgeColor: bannerView.isEvent ? root.calColor(root.banner.cal)
+                    : !bannerView.isAct ? Qt.rgba(1, 1, 1, 0.11)
+                    : root.banner.state === "failed" ? "#ff453a"
+                    : root.banner.state === "cancelled" ? "#3a3a3c"
+                    : root.banner.state === "done" ? (root.banner.icon === "timer" ? "#ff9f0a" : "#30d158")
+                    : (root.banner.color || Qt.rgba(1, 1, 1, 0.17))
                 title: bannerView.isEvent
                     ? (root.banner.title || "") + (function () {
                           var m = Math.round((root.banner.start - root.nowMs) / 60000)
-                          return m >= 1 ? " · " + m + " dk sonra" : " · şimdi"
+                          return m >= 1 ? root.t(" · %1 dk sonra").arg(m) : root.t(" · şimdi")
                       })()
                     : (root.banner.title || root.banner.app || "")
                 subtitle: bannerView.isEvent
@@ -977,7 +1265,7 @@ Window {
                         renderType: Text.CurveRendering
                         font.family: "Inter"
                         anchors.centerIn: parent
-                        text: "Katıl"
+                        text: root.t("Katıl")
                         color: "white"
                         font.pixelSize: 12
                         font.weight: Font.DemiBold
@@ -991,10 +1279,114 @@ Window {
             }
             // Bildirimlerde rozetin içinde uygulama simgesi
             AppIcon {
-                visible: !bannerView.isEvent
+                visible: !bannerView.badged
                 x: 18 + 5; y: (parent.height - 22) / 2
                 size: 22
                 source: root.banner.icon || "notifications"
+            }
+        }
+
+        // ==============================================================
+        // KOMUT PALETİ
+        // ==============================================================
+        View {
+            id: paletteHost
+            on: root.mode === "palette"
+            width: 640; height: paletteView.wantH
+            CommandPalette {
+                id: paletteView
+                anchors.fill: parent
+                sh: root
+                open: root.paletteOpen
+            }
+        }
+
+        // ==============================================================
+        // CANLI ETKİNLİKLER (fare üstünde): en yeni 3 etkinlik
+        // ==============================================================
+        View {
+            id: liveView
+            on: root.mode === "live"
+            width: 440; height: 16 + Math.min(3, root.live.items.length) * 52
+
+            Column {
+                x: 16; y: 8
+                width: parent.width - 32
+                Repeater {
+                    model: root.live.items.slice(-3).reverse()
+                    Item {
+                        id: actRow
+                        required property var modelData
+                        readonly property var a: modelData
+                        width: parent.width
+                        height: 52
+                        HoverHandler { id: rowHover }
+
+                        ActRing {
+                            id: aRing
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 34; height: 34
+                            thickness: 3
+                            frac: root.actFrac(actRow.a)
+                            color: root.actColor(actRow.a)
+                            icon: root.actIcon(actRow.a.icon)
+                            live: liveView.on
+                        }
+                        Column {
+                            anchors.left: aRing.right
+                            anchors.leftMargin: 12
+                            anchors.right: aVal.left
+                            anchors.rightMargin: 10
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 1
+                            Text {
+                                renderType: Text.CurveRendering
+                                font.family: "Inter"
+                                width: parent.width
+                                text: actRow.a.title
+                                color: "white"
+                                font.pixelSize: 14
+                                font.weight: Font.DemiBold
+                                elide: Text.ElideRight
+                            }
+                            Text {
+                                renderType: Text.CurveRendering
+                                font.family: "Inter"
+                                visible: text !== ""
+                                width: parent.width
+                                text: actRow.a.subtitle
+                                color: Qt.rgba(1, 1, 1, 0.5)
+                                font.pixelSize: 12
+                                elide: Text.ElideRight
+                            }
+                        }
+                        Text {
+                            id: aVal
+                            renderType: Text.CurveRendering
+                            font.family: "Inter"
+                            anchors.right: aStop.visible ? aStop.left : parent.right
+                            anchors.rightMargin: aStop.visible ? 8 : 4
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: root.actValue(actRow.a)
+                            color: root.actColor(actRow.a)
+                            font.pixelSize: 18
+                            font.weight: Font.DemiBold
+                            font.letterSpacing: -0.4
+                            font.features: { "tnum": 1 }
+                        }
+                        CtlButton {   // iptal (yalnızca fare satırın üstündeyken)
+                            id: aStop
+                            visible: rowHover.hovered
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 26; height: 26; iconSize: 12
+                            icon: root.ic("isle-close-symbolic")
+                            filled: true
+                            fillColor: Qt.rgba(1, 1, 1, 0.1)
+                            onClicked: root.send("activity_end", actRow.a.id)
+                        }
+                    }
+                }
             }
         }
 
@@ -1006,6 +1398,15 @@ Window {
             on: root.mode === "media"
             width: 400; height: 84
 
+            Spectrum {     // alt kenarda yumuşak ışık: gerçek ses
+                anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                anchors.leftMargin: 26; anchors.rightMargin: 26
+                height: 26
+                opacity: root.vivid ? 0.32 : 0.22
+                color: root.glowColor
+                gap: 2
+                levels: root.spectrum
+            }
             ArtImage {
                 id: mArt
                 x: 18; y: 12
@@ -1024,7 +1425,7 @@ Window {
                     renderType: Text.CurveRendering
                     font.family: "Inter"
                     width: parent.width
-                    text: root.media.title || "Bilinmeyen parça"
+                    text: root.media.title || root.t("Bilinmeyen parça")
                     color: "white"
                     font.pixelSize: 14
                     font.weight: Font.DemiBold
@@ -1113,7 +1514,7 @@ Window {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 34
                 horizontalAlignment: Text.AlignRight
-                text: root.volume.muted ? "Sessiz" : root.volume.level
+                text: root.volume.muted ? root.t("Sessiz") : root.volume.level
                 color: root.volume.muted ? "#ff453a" : "white"
                 font.pixelSize: root.volume.muted ? 11 : 14
                 font.weight: Font.DemiBold
@@ -1135,8 +1536,8 @@ Window {
                 anchors.rightMargin: 18
                 icon: root.ic("isle-shelf")
                 badgeColor: "#0a84ff"
-                title: "Rafa bırak"
-                subtitle: "Dosyayı bırakınca rafa eklenir"
+                title: root.t("Rafa bırak")
+                subtitle: root.t("Dosyayı bırakınca rafa eklenir")
             }
         }
 
@@ -1221,7 +1622,7 @@ Window {
                         renderType: Text.CurveRendering
                         font.family: "Inter"
                         width: parent.width
-                        text: (askView.a.project || "Claude Code") + " izin istiyor"
+                        text: root.t("%1 izin istiyor").arg(askView.a.project || "Claude Code")
                         color: "white"
                         font.pixelSize: 14
                         font.weight: Font.DemiBold
@@ -1264,13 +1665,13 @@ Window {
                             width: lbl.implicitWidth + 28
                             height: 28; radius: 14
                             color: primary ? (bMa.pressed ? "#d1d1d6" : "white")
-                                           : (bMa.pressed ? "#48484a" : bMa.containsMouse ? "#3a3a3c" : "#2c2c2e")
+                                           : (bMa.pressed ? "#48484a" : bMa.containsMouse ? "#3a3a3c" : Qt.rgba(1, 1, 1, 0.17))
                             Text {
                                 id: lbl
                                 renderType: Text.CurveRendering
                                 font.family: "Inter"
                                 anchors.centerIn: parent
-                                text: modelData === "deny" ? "Reddet" : modelData === "allow" ? "İzin ver" : "Her zaman"
+                                text: modelData === "deny" ? root.t("Reddet") : modelData === "allow" ? root.t("İzin ver") : root.t("Her zaman")
                                 color: parent.primary ? "black" : "white"
                                 font.pixelSize: 12
                                 font.weight: Font.DemiBold
@@ -1321,22 +1722,22 @@ Window {
                     : alertView.a.kind === "call" ? root.ic("isle-phone-symbolic")
                     : alertView.a.kind === "bt" ? (alertView.headset ? root.ic("isle-headphones-symbolic") : root.ic("isle-bluetooth-symbolic"))
                     : alertView.a.connected ? root.ic("isle-wifi-symbolic") : root.ic("isle-wifi-off-symbolic")
-                badgeColor: alertView.a.kind === "caps" ? "#2c2c2e"
+                badgeColor: alertView.a.kind === "caps" ? Qt.rgba(1, 1, 1, 0.17)
                           : alertView.a.kind === "call" ? "#30d158"
-                          : alertView.a.kind === "bt" ? (alertView.a.connected ? "#0a84ff" : "#2c2c2e")
+                          : alertView.a.kind === "bt" ? (alertView.a.connected ? "#0a84ff" : Qt.rgba(1, 1, 1, 0.17))
                           : alertView.a.connected ? "#0a84ff" : "#ff453a"
                 level: alertView.a.kind === "bt" && alertView.a.connected && alertView.a.battery >= 0 ? alertView.a.battery / 100 : -1
                 levelColor: alertView.a.battery >= 0 && alertView.a.battery <= 20 ? "#ff453a" : "#30d158"
                 title: alertView.a.kind === "caps" ? "Caps Lock"
                      : alertView.a.kind === "call" ? alertView.a.name
                      : alertView.a.kind === "bt" ? (alertView.a.name || "Bluetooth")
-                     : alertView.a.connected ? "Bağlandı" : "İnternet bağlantısı kesildi"
-                subtitle: alertView.a.kind === "call" ? (alertView.a.number || "Telefon çalıyor")
-                        : alertView.a.kind === "bt" ? (alertView.a.connected ? "Bağlandı" : "Bağlantı kesildi")
-                        : alertView.a.kind === "net" ? (alertView.a.connected ? (alertView.a.wired ? "Kablolu ağ" : (alertView.a.ssid || "Wi-Fi"))
-                                                                              : "Ağ yok")
+                     : alertView.a.connected ? root.t("Bağlandı") : root.t("İnternet bağlantısı kesildi")
+                subtitle: alertView.a.kind === "call" ? (alertView.a.number || root.t("Telefon çalıyor"))
+                        : alertView.a.kind === "bt" ? (alertView.a.connected ? root.t("Bağlandı") : root.t("Bağlantı kesildi"))
+                        : alertView.a.kind === "net" ? (alertView.a.connected ? (alertView.a.wired ? root.t("Kablolu ağ") : (alertView.a.ssid || "Wi-Fi"))
+                                                                              : root.t("Ağ yok"))
                         : ""
-                value: alertView.a.kind === "bt" && alertView.a.connected && alertView.a.battery >= 0 ? alertView.a.battery + "%" : ""
+                value: alertView.a.kind === "bt" && alertView.a.connected && alertView.a.battery >= 0 ? root.pct(alertView.a.battery) : ""
 
                 // Caps Lock durumu: renkli hap
                 Rectangle {
@@ -1348,7 +1749,7 @@ Window {
                         renderType: Text.CurveRendering
                         font.family: "Inter"
                         anchors.centerIn: parent
-                        text: alertView.a.on ? "Açık" : "Kapalı"
+                        text: alertView.a.on ? root.t("Açık") : root.t("Kapalı")
                         color: alertView.a.on ? "#30d158" : Qt.rgba(1, 1, 1, 0.6)
                         font.pixelSize: 12
                         font.weight: Font.DemiBold
@@ -1375,9 +1776,9 @@ Window {
                 iconTint: low ? "#ff453a" : "#30d158"
                 level: root.battery.level / 100
                 levelColor: low ? "#ff453a" : "#30d158"
-                title: low ? "Pil azaldı" : "Şarj oluyor"
-                subtitle: low ? "Şarj aletini tak" : "Şarj aleti bağlı"
-                value: root.battery.level + "%"
+                title: low ? root.t("Pil azaldı") : root.t("Şarj oluyor")
+                subtitle: low ? root.t("Şarj aletini tak") : root.t("Şarj aleti bağlı")
+                value: root.pct(root.battery.level)
                 valueColor: low ? "#ff453a" : "white"
             }
         }
@@ -1429,7 +1830,7 @@ Window {
                             renderType: Text.CurveRendering
                             font.family: "Inter"
                             anchors.verticalCenter: parent.verticalCenter
-                            text: { root.dateText; return Qt.locale().toString(new Date(), "ddd d MMM") }
+                            text: { root.dateText; return root.locale.toString(new Date(), "ddd d MMM") }
                             color: Qt.rgba(1, 1, 1, 0.9)
                             font.pixelSize: 13
                         }
@@ -1454,7 +1855,7 @@ Window {
                         tint: root.tab === 8 ? "white" : Qt.rgba(1, 1, 1, 0.6)
                         filled: root.tab === 8
                         fillColor: Qt.rgba(1, 1, 1, 0.12)
-                        onClicked: root.tab = root.tab === 8 ? 0 : 8
+                        onClicked: root.tab = root.tab === 8 ? root.tabOrder[0] : 8
                     }
                     CtlButton {
                         Layout.preferredWidth: 28
@@ -1487,54 +1888,63 @@ Window {
                         anchors.fill: parent
                         index: 0
                         current: root.tab
+                        order: root.tabOrder
                         PageMusic { anchors.fill: parent; sh: root }
                     }
                     PageFade {
                         anchors.fill: parent
                         index: 1
                         current: root.tab
+                        order: root.tabOrder
                         PageNotifs { anchors.fill: parent; sh: root }
                     }
                     PageFade {
                         anchors.fill: parent
                         index: 2
                         current: root.tab
+                        order: root.tabOrder
                         PageFocus { anchors.fill: parent; sh: root }
                     }
                     PageFade {
                         anchors.fill: parent
                         index: 3
                         current: root.tab
+                        order: root.tabOrder
                         PageCalendar { anchors.fill: parent; sh: root }
                     }
                     PageFade {
                         anchors.fill: parent
                         index: 4
                         current: root.tab
+                        order: root.tabOrder
                         PageControls { anchors.fill: parent; sh: root }
                     }
                     PageFade {
                         anchors.fill: parent
                         index: 5
                         current: root.tab
+                        order: root.tabOrder
                         PageApps { anchors.fill: parent; sh: root }
                     }
                     PageFade {
                         anchors.fill: parent
                         index: 6
                         current: root.tab
+                        order: root.tabOrder
                         PageSystem { anchors.fill: parent; sh: root }
                     }
                     PageFade {
                         anchors.fill: parent
                         index: 7
                         current: root.tab
+                        order: root.tabOrder
                         PageTools { anchors.fill: parent; sh: root }
                     }
                     PageFade {
                         anchors.fill: parent
                         index: 8
                         current: root.tab
+                        order: root.tabOrder
                         PageSettings { anchors.fill: parent; sh: root }
                     }
                 }
@@ -1566,7 +1976,7 @@ Window {
                             width: parent.width
                             height: 44
                             radius: 12
-                            color: devMa.containsMouse ? "#2c2c2e" : "transparent"
+                            color: devMa.containsMouse ? Qt.rgba(1, 1, 1, 0.17) : "transparent"
 
                             Ico {
                                 x: 10

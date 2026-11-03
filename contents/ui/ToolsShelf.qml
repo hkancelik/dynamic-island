@@ -35,7 +35,7 @@ Item {
             Text {
                 renderType: Text.CurveRendering
                 font.family: "Inter"
-                text: sh.shelf.length > 0 ? sh.shelf.length + " dosya" : "Dosya rafı"
+                text: sh.shelf.length > 0 ? sh.t("%1 dosya").arg(sh.shelf.length) : sh.t("Dosya rafı")
                 color: "#8e8e93"
                 font.pixelSize: 11
                 font.weight: Font.Medium
@@ -45,7 +45,7 @@ Item {
                 renderType: Text.CurveRendering
                 font.family: "Inter"
                 visible: sh.shelf.length > 0
-                text: "Rafı boşalt"
+                text: sh.t("Rafı boşalt")
                 color: clrMa.containsMouse ? "white" : sh.accent
                 font.pixelSize: 11
                 font.weight: Font.Medium
@@ -90,7 +90,7 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     y: 4
                     width: 58; height: 58; radius: 16
-                    color: dragMa.containsMouse ? "#2c2c2e" : "#1c1c1e"
+                    color: dragMa.containsMouse ? Qt.rgba(1, 1, 1, 0.17) : Qt.rgba(1, 1, 1, 0.11)
                     scale: dragMa.pressed ? 0.94 : 1
                     Behavior on scale { NumberAnimation { duration: 100 } }
 
@@ -175,7 +175,7 @@ Item {
                 renderType: Text.CurveRendering
                 font.family: "Inter"
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: drop.containsDrag ? "Bırak" : "Dosyaları buraya sürükle"
+                text: drop.containsDrag ? sh.t("Bırak") : sh.t("Dosyaları buraya sürükle")
                 color: drop.containsDrag ? "white" : "#8e8e93"
                 font.pixelSize: 13
                 font.weight: Font.Medium
@@ -185,7 +185,7 @@ Item {
                 font.family: "Inter"
                 visible: !drop.containsDrag
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: "Sonra başka bir uygulamaya sürükleyip bırakabilirsin"
+                text: sh.t("Sonra başka bir uygulamaya sürükleyip bırakabilirsin")
                 color: "#8e8e93"
                 font.pixelSize: 10
             }

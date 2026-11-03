@@ -63,7 +63,8 @@ def snapshot():
         cls = p.get("media.class", "")
         if cls == "Stream/Input/Audio":
             # Ses düzeyi göstergeleri (hoparlör çıkışını dinler) mikrofon sayılmaz
-            if p.get("stream.monitor") or p.get("stream.capture.sink") or "peak" in str(p.get("node.name", "")).lower():
+            if (p.get("stream.monitor") or p.get("stream.capture.sink") or "peak" in str(p.get("node.name", "")).lower()
+                    or p.get("application.name") == "dynamic-island"):   # adanın kendi spektrum akışı
                 continue
             out["mic"].append(_app(p))
         elif cls == "Video/Source":

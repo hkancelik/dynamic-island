@@ -22,6 +22,7 @@ SHORTCUTS = {
     "toggle_panel": ("Paneli aç/kapat", "toggle_panel"),
     "toggle_dnd": ("Rahatsız Etme", "toggle_dnd"),
     "record": ("Ekran kaydını başlat/durdur", "rec_toggle"),
+    "palette": ("Komut paleti", "palette"),
 }
 
 TEMPLATE = """// Dynamic Island KWin köprüsü (otomatik üretilir, elle düzenlemeyin)

@@ -11,7 +11,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: art.radius
-        color: "#2c2c2e"
+        color: Qt.rgba(1, 1, 1, 0.17)
 
         Ico {
             anchors.centerIn: parent

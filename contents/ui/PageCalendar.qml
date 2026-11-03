@@ -10,7 +10,7 @@ Item {
     property int monthOffset: 0
     property double selMs: 0       // seçili günün başlangıcı (0: bugün)
 
-    readonly property var loc: Qt.locale("tr_TR")
+    readonly property var loc: sh.locale
     readonly property double todayMs: { var d = new Date(sh.nowMs); d.setHours(0, 0, 0, 0); return d.getTime() }
     readonly property double dayMs: selMs > 0 ? selMs : todayMs
     readonly property var shown: { var d = new Date(sh.nowMs); return new Date(d.getFullYear(), d.getMonth() + monthOffset, 1) }
@@ -59,7 +59,7 @@ Item {
                     Text {
                         renderType: Text.CurveRendering
                         font.family: "Inter"
-                        text: page.loc.standaloneMonthName(page.shown.getMonth(), Locale.LongFormat).toLocaleUpperCase("tr-TR")
+                        text: page.loc.standaloneMonthName(page.shown.getMonth(), Locale.LongFormat).toLocaleUpperCase(sh.lang === "tr" ? "tr-TR" : "en-US")
                         color: "#ff453a"
                         font.pixelSize: 12
                         font.weight: Font.Bold
@@ -93,7 +93,7 @@ Item {
 
             Row {
                 Repeater {
-                    model: ["Pt", "Sa", "Ça", "Pe", "Cu", "Ct", "Pz"]
+                    model: [sh.t("Pt"), sh.t("Sa"), sh.t("Ça"), sh.t("Pe"), sh.t("Cu"), sh.t("Ct"), sh.t("Pz")]
                     Text {
                         required property var modelData
                         renderType: Text.CurveRendering
@@ -164,7 +164,7 @@ Item {
                 renderType: Text.CurveRendering
                 font.family: "Inter"
                 Layout.fillWidth: true
-                text: (page.dayMs === page.todayMs ? "Bugün, " : "") + page.loc.toString(new Date(page.dayMs), page.dayMs === page.todayMs ? "d MMMM" : "d MMMM dddd")
+                text: (page.dayMs === page.todayMs ? sh.t("Bugün, ") : "") + page.loc.toString(new Date(page.dayMs), page.dayMs === page.todayMs ? "d MMMM" : "d MMMM dddd")
                 color: "white"
                 font.pixelSize: 14
                 font.weight: Font.DemiBold
@@ -178,7 +178,7 @@ Item {
                 visible: sh.cal.writable === true
                 Layout.fillWidth: true
                 Layout.preferredHeight: 30
-                placeholderText: "Etkinlik ekle · ör. Akşam yemeği 20:00"
+                placeholderText: sh.t("Etkinlik ekle · ör. Akşam yemeği 20:00")
                 placeholderTextColor: Qt.rgba(1, 1, 1, 0.4)
                 color: "white"
                 font.family: "Inter"
@@ -189,7 +189,7 @@ Item {
                 maximumLength: 200
                 background: Rectangle {
                     radius: 10
-                    color: "#1c1c1e"
+                    color: Qt.rgba(1, 1, 1, 0.11)
                     border.width: addField.activeFocus ? 1 : 0
                     border.color: Qt.rgba(1, 1, 1, 0.16)
                     Ico {
@@ -268,7 +268,7 @@ Item {
                             renderType: Text.CurveRendering
                             font.family: "Inter"
                             anchors.centerIn: parent
-                            text: "Katıl"
+                            text: sh.t("Katıl")
                             color: "white"
                             font.pixelSize: 11
                             font.weight: Font.DemiBold
@@ -286,7 +286,7 @@ Item {
                         anchors.right: parent.right
                         anchors.rightMargin: 10
                         anchors.verticalCenter: parent.verticalCenter
-                        text: parent.whole ? "Tüm gün" : sh.clockOf(modelData.start)
+                        text: parent.whole ? sh.t("Tüm gün") : sh.clockOf(modelData.start)
                         color: Qt.rgba(1, 1, 1, 0.65)
                         font.pixelSize: 11
                         font.weight: Font.Medium
@@ -306,7 +306,7 @@ Item {
         visible: sh.cal.configured && page.dayEvents.length === 0
         x: 196 + 22 + (parent.width - 196 - 22 - width) / 2
         y: (parent.height - height) / 2 + (sh.cal.writable ? 26 : 10)
-        text: "Etkinlik yok"
+        text: sh.t("Etkinlik yok")
         color: Qt.rgba(1, 1, 1, 0.55)
         font.pixelSize: 13
         font.weight: Font.DemiBold
@@ -323,7 +323,7 @@ Item {
             renderType: Text.CurveRendering
             font.family: "Inter"
             width: parent.width
-            text: "Takvim bağlı değil"
+            text: sh.t("Takvim bağlı değil")
             color: Qt.rgba(1, 1, 1, 0.55)
             font.pixelSize: 13
             font.weight: Font.DemiBold
@@ -333,14 +333,14 @@ Item {
             font.family: "Inter"
             width: parent.width
             wrapMode: Text.Wrap
-            text: "Apple iCloud hesabını \"caldav\" alanına ya da bir iCal adresini \"calendars\" alanına ekle."
+            text: sh.t("Apple iCloud hesabını \"caldav\" alanına ya da bir iCal adresini \"calendars\" alanına ekle.")
             color: Qt.rgba(1, 1, 1, 0.45)
             font.pixelSize: 12
         }
         Text {
             renderType: Text.CurveRendering
             font.family: "Inter"
-            text: "Ayar dosyasını aç"
+            text: sh.t("Ayar dosyasını aç")
             color: cfgMa.containsMouse ? "white" : "#0a84ff"
             font.pixelSize: 12
             font.weight: Font.DemiBold

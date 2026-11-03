@@ -1,0 +1,342 @@
+#!/usr/bin/env python3
+"""island: Dynamic Island'ı komut satırından, betiklerden ve kısayollardan kullan.
+
+  island run [-t TITLE] [--] CMD...     komutu çalıştır; sürerken adada canlı kart, bitince ✓/✗
+  island timer 5m [LABEL]               geri sayım (90s, 5m, 1h30m, 10:00)
+  island progress ID 42% [-t TITLE]     ilerleme bildir (0.42, 42, 42%)
+  island set ID [seçenekler]            etkinliği oluştur/güncelle
+  island end ID [--failed] [-m MSG]     etkinliği bitir
+  island notify TITLE [BODY]            kısa bildirim
+  island list | clear                   etkinlikleri listele / hepsini kaldır
+  island toggle|hide|show|dnd|panel     adayı denetle
+  island tab N [SUB]                    paneli N. sekmede aç
+  island hook zsh|bash|fish             kabuk entegrasyonu (uzun komut bitince haber)
+
+Ortam: ISLAND_URL (varsayılan http://127.0.0.1:47615)
+"""
+import argparse
+import json
+import os
+import shlex
+import signal
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+try:
+    from i18n import _
+except ImportError:   # tek başına kopyalanmışsa
+    def _(s):
+        return s
+
+URL = os.environ.get("ISLAND_URL", "http://127.0.0.1:47615")
+TABS = ["music", "notifications", "focus", "calendar", "controls", "apps", "system", "tools", "settings"]
+
+
+class NotRunning(Exception):
+    pass
+
+
+def token():
+    base = os.environ.get("XDG_RUNTIME_DIR") or "/tmp/dynamic-island-%d" % os.getuid()
+    try:
+        with open(os.path.join(base, "dynamic-island", "token")) as f:
+            return f.read().strip()
+    except OSError:
+        raise NotRunning() from None
+
+
+def post(path, body, timeout=3):
+    req = urllib.request.Request(URL + path, data=json.dumps(body).encode(), method="POST",
+                                 headers={"X-Island": token(), "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read() or b"{}")
+    except urllib.error.HTTPError as e:
+        try:
+            msg = json.loads(e.read() or b"{}").get("error") or e.reason
+        except ValueError:
+            msg = e.reason
+        sys.exit("island: %s" % msg)
+    except (urllib.error.URLError, ConnectionError, TimeoutError):
+        raise NotRunning() from None
+
+
+def activity(**body):
+    return post("/activity", {k: v for k, v in body.items() if v is not None})
+
+
+def cmd(name, arg=None):
+    return post("/cmd", {"cmd": name, "arg": arg})
+
+
+# -- komutlar ---------------------------------------------------------------
+def do_run(a):
+    if not a.command:
+        sys.exit("island run: " + _("komut gerekli"))
+    argv = a.command[1:] if a.command[0] == "--" else a.command
+    title = a.title or " ".join(shlex.quote(x) for x in argv)
+    aid = a.id or "run-%d" % os.getpid()
+    here = os.path.basename(os.getcwd()) or "/"
+    live = True
+    try:
+        activity(op="set", id=aid, title=title, subtitle=here, icon=a.icon or "terminal",
+                 color=a.color, ttl=7 * 86400)
+    except NotRunning:
+        live = False    # ada kapalı: komut yine de çalışsın
+    t0 = time.time()
+    try:
+        p = subprocess.Popen(argv)
+    except FileNotFoundError:
+        if live:
+            activity(op="end", id=aid, state="failed", message=_("komut bulunamadı"))
+        sys.exit("island run: %s: %s" % (_("komut bulunamadı"), argv[0]))
+    # Ctrl+C alt sürece gider; biz bekleyip sonucu bildiririz
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    code = p.wait()
+    took = time.time() - t0
+    if live:
+        try:
+            if code == 0:
+                activity(op="end", id=aid, state="done", message="%s · %s" % (here, _dur(took)))
+            else:
+                why = _("kesildi") if code < 0 or code == 130 else _("çıkış kodu %d") % code
+                activity(op="end", id=aid, state="failed", message="%s · %s" % (why, _dur(took)))
+        except NotRunning:
+            pass
+    sys.exit(code if code >= 0 else 128 - code)
+
+
+def _dur(s):
+    s = int(s)
+    if s < 60:
+        return _("%d sn") % s
+    if s < 3600:
+        return _("%d dk %d sn") % (s // 60, s % 60)
+    return _("%d sa %d dk") % (s // 3600, s // 60 % 60)
+
+
+def do_timer(a):
+    aid = a.id or "timer-%d" % int(time.time())
+    activity(op="set", id=aid, title=" ".join(a.label) or _("Zamanlayıcı"), icon="timer",
+             duration=a.duration, color=a.color)
+    print(aid)
+
+
+def do_progress(a):
+    activity(op="set", id=a.id, progress=a.value, title=a.title, subtitle=a.subtitle,
+             icon=a.icon, color=a.color, value=a.label)
+
+
+def do_set(a):
+    print(activity(op="set", id=a.id, title=a.title, subtitle=a.subtitle, progress=a.progress,
+                   value=a.value, icon=a.icon, color=a.color, ttl=a.ttl, duration=a.duration)["id"])
+
+
+def do_end(a):
+    state = "failed" if a.failed else "cancelled" if a.cancel else "done"
+    if not activity(op="end", id=a.id, state=state, message=a.message).get("ok"):
+        sys.exit("island: " + _("böyle bir etkinlik yok: %s") % a.id)
+
+
+def do_notify(a):
+    activity(op="notify", title=a.title, body=" ".join(a.body), icon=a.icon, color=a.color)
+
+
+def do_list(a):
+    items = activity(op="list")["items"]
+    if a.json:
+        print(json.dumps(items, ensure_ascii=False, indent=2))
+        return
+    if not items:
+        print(_("Etkinlik yok."))
+    for it in items:
+        if it["end"]:
+            left = max(0, it["end"] / 1000 - time.time())
+            what = _("%d:%02d kaldı") % (left // 60, left % 60)
+        elif it["progress"] >= 0:
+            what = "%d%%" % round(it["progress"] * 100)
+        else:
+            what = _("sürüyor")
+        print("%-20s %-12s %s" % (it["id"], what, it["title"]))
+
+
+def do_clear(_a):
+    activity(op="clear")
+
+
+def do_tab(a):
+    try:
+        n = int(a.tab)
+    except ValueError:
+        if a.tab not in TABS:
+            sys.exit("island tab: %s ya da 0-8" % ", ".join(TABS))
+        n = TABS.index(a.tab)
+    arg = {"tab": n}
+    if a.sub is not None:
+        arg["sub"] = a.sub
+    cmd("open_tab", arg)
+
+
+SIMPLE = {"toggle": "toggle_hide", "hide": "hide", "show": "show", "dnd": "toggle_dnd",
+          "panel": "toggle_panel", "record": "rec_toggle", "play-pause": "play_pause",
+          "next": "next", "prev": "prev", "focus": "focus_toggle"}
+
+# Kabuk entegrasyonu: ISLAND_MIN_SECS'ten (varsayılan 10) uzun süren komut bitince adada haber.
+# Ağ çağrısı arka planda yapılır; istem (prompt) hiç beklemez.
+HOOKS = {
+    "zsh": r'''# Dynamic Island: eval "$(island hook zsh)"
+zmodload zsh/datetime 2>/dev/null
+__island_preexec() { __island_cmd=$1; __island_t0=$EPOCHREALTIME }
+__island_precmd() {
+  local code=$? t0=$__island_t0; unset __island_t0
+  [[ -z $t0 ]] && return
+  local secs=$(( ${EPOCHREALTIME%.*} - ${t0%.*} ))
+  (( secs < ${ISLAND_MIN_SECS:-10} )) && return
+  island __done "$code" "$secs" "$__island_cmd" "${PWD:t}" &>/dev/null &!
+}
+autoload -Uz add-zsh-hook
+add-zsh-hook preexec __island_preexec
+add-zsh-hook precmd __island_precmd
+''',
+    "bash": r'''# Dynamic Island: eval "$(island hook bash)"
+__island_preexec() { [[ -n $COMP_LINE || -n $__island_t0 ]] && return; __island_cmd=$BASH_COMMAND; __island_t0=$SECONDS; }
+__island_precmd() {
+  local code=$? t0=$__island_t0; unset __island_t0
+  [[ -z $t0 ]] && return
+  local secs=$(( SECONDS - t0 ))
+  (( secs < ${ISLAND_MIN_SECS:-10} )) && return
+  ( island __done "$code" "$secs" "$__island_cmd" "${PWD##*/}" &>/dev/null & )
+}
+trap '__island_preexec' DEBUG
+PROMPT_COMMAND="__island_precmd${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
+''',
+    "fish": r'''# Dynamic Island: island hook fish | source
+function __island_postexec --on-event fish_postexec
+    set -l code $status
+    set -q ISLAND_MIN_SECS; or set -l ISLAND_MIN_SECS 10
+    test (math "$CMD_DURATION / 1000") -lt $ISLAND_MIN_SECS; and return
+    island __done $code (math --scale=0 "$CMD_DURATION / 1000") "$argv[1]" (basename $PWD) &>/dev/null &
+    disown 2>/dev/null
+end
+''',
+}
+
+
+def do_hook(a):
+    print(HOOKS[a.shell], end="")
+
+
+def do_done(a):
+    """Kabuk entegrasyonundan çağrılır: island __done KOD SANİYE KOMUT KLASÖR"""
+    code, secs = int(a.code), int(a.secs)
+    command = " ".join(a.command.split())[:80]
+    if not command or command.split()[0] in ("island", "vim", "nvim", "less", "man", "ssh", "htop", "top", "btop"):
+        return
+    activity(op="notify", title=command,
+             body="%s · %s · %s" % (a.dir, _dur(secs), _("bitti") if code == 0 else _("çıkış kodu %d") % code),
+             icon="check" if code == 0 else "warning")
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="island", description="Dynamic Island denetimi",
+                                 formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__.split("\n\n")[1])
+    sub = ap.add_subparsers(dest="what", metavar="KOMUT")
+
+    def style(p):
+        p.add_argument("-i", "--icon")
+        p.add_argument("-c", "--color", help="#rrggbb")
+
+    p = sub.add_parser("run", help="komutu çalıştır, adada göster")
+    p.add_argument("-t", "--title")
+    p.add_argument("--id")
+    style(p)
+    p.add_argument("command", nargs=argparse.REMAINDER)
+    p.set_defaults(fn=do_run)
+
+    p = sub.add_parser("timer", help="geri sayım")
+    p.add_argument("duration")
+    p.add_argument("label", nargs="*")
+    p.add_argument("--id")
+    p.add_argument("-c", "--color")
+    p.set_defaults(fn=do_timer)
+
+    p = sub.add_parser("progress", help="ilerleme bildir")
+    p.add_argument("id")
+    p.add_argument("value")
+    p.add_argument("-t", "--title")
+    p.add_argument("-s", "--subtitle")
+    p.add_argument("-l", "--label", help="sağdaki kısa metin")
+    style(p)
+    p.set_defaults(fn=do_progress)
+
+    p = sub.add_parser("set", help="etkinliği oluştur/güncelle")
+    p.add_argument("id", nargs="?")
+    p.add_argument("-t", "--title")
+    p.add_argument("-s", "--subtitle")
+    p.add_argument("-p", "--progress")
+    p.add_argument("-v", "--value")
+    p.add_argument("-d", "--duration")
+    p.add_argument("--ttl", type=int)
+    style(p)
+    p.set_defaults(fn=do_set)
+
+    p = sub.add_parser("end", help="etkinliği bitir")
+    p.add_argument("id")
+    p.add_argument("--failed", action="store_true")
+    p.add_argument("--cancel", action="store_true")
+    p.add_argument("-m", "--message")
+    p.set_defaults(fn=do_end)
+
+    p = sub.add_parser("notify", help="kısa bildirim")
+    p.add_argument("title")
+    p.add_argument("body", nargs="*")
+    style(p)
+    p.set_defaults(fn=do_notify)
+
+    p = sub.add_parser("list", help="etkinlikler")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(fn=do_list)
+    sub.add_parser("clear", help="tüm etkinlikleri kaldır").set_defaults(fn=do_clear)
+
+    for name, c in SIMPLE.items():
+        sub.add_parser(name).set_defaults(fn=lambda _a, c=c: cmd(c))
+    p = sub.add_parser("palette", help="komut paletini aç (isteğe bağlı arama ile)")
+    p.add_argument("query", nargs="*")
+    p.set_defaults(fn=lambda a: cmd("palette", " ".join(a.query) or None))
+
+    p = sub.add_parser("tab", help="paneli bir sekmede aç")
+    p.add_argument("tab", help="0-8 ya da " + ", ".join(TABS))
+    p.add_argument("sub", nargs="?", type=int)
+    p.set_defaults(fn=do_tab)
+
+    p = sub.add_parser("hook", help="kabuk entegrasyonu")
+    p.add_argument("shell", choices=sorted(HOOKS))
+    p.set_defaults(fn=do_hook)
+
+    p = sub.add_parser("__done")
+    p.add_argument("code")
+    p.add_argument("secs")
+    p.add_argument("command")
+    p.add_argument("dir")
+    p.set_defaults(fn=do_done)
+
+    a = ap.parse_args(argv)
+    if not getattr(a, "fn", None):
+        ap.print_help()
+        return 2
+    try:
+        a.fn(a)
+    except NotRunning:
+        if a.what in ("hook", "__done"):
+            return 0
+        print("island: " + _("Dynamic Island çalışmıyor (./launch.sh)"), file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

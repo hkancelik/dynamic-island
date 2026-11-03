@@ -1,6 +1,7 @@
 """Kullanıcı yapılandırması: ~/.config/dynamic-island/config.json"""
 import json
 import os
+import re
 import secrets
 import tempfile
 
@@ -28,6 +29,9 @@ def make_token():
 def private_open(path, mode="w"):
     """Kullanıcı verisi (parola/not içerebilir) için yalnızca sahibin okuyabildiği dosya."""
     return os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), mode)
+
+# Paneldeki sekmeler (arayüzdeki sayfa numarası = bu listedeki sıra)
+TABS = ("music", "notifications", "focus", "calendar", "controls", "apps", "system", "tools")
 
 DEFAULTS = {
     # Google Takvim → Ayarlar → takvimi seç → "iCal biçimindeki gizli adres"
@@ -57,6 +61,8 @@ DEFAULTS = {
     "lyrics": True,
     # Takvimdeki toplantıdan 5 dk önce uyarı
     "meeting_alerts": True,
+    # Müzik çubukları gerçek sese göre (hoparlöre giden ses yalnızca bellekte çözümlenir)
+    "spectrum": True,
     # Kamera / mikrofon / ekran paylaşımı noktaları
     "privacy_dots": True,
     # Hava durumu (Open-Meteo). Konum: {"city": "İstanbul"} ya da {"lat": 41.0, "lon": 29.0, "name": "Ev"};
@@ -65,12 +71,22 @@ DEFAULTS = {
     "weather": {"city": ""},
     # Telefon (KDE Connect): pil, gelen arama, telefonu çaldır
     "phone": True,
+    # Panel düzeni ve görünüm (adanın Ayarlar → Sekmeler / Görünüm bölümünden değişir)
+    #   tabs: sekme sırası, hidden: gizli sekmeler, open: "last" (son sekme) | "first" (ilk sekme)
+    #   position: "center" | "left" | "right", accent: "auto" (albüm kapağından) | "#rrggbb"
+    #   material: "minimal" (sade derinlik: kısık albüm ışığı, nötr kenar ışığı) | "ambient" (canlı albüm
+    #             renkleri, vurgu renginde bas ve kenar ışığı) | "black" (düz siyah)
+    "layout": {"tabs": list(TABS), "hidden": [], "open": "last", "position": "center", "accent": "auto",
+               "material": "minimal"},
+    # Arayüz dili: "auto" (sistem dili), "en" ya da "tr"
+    "language": "auto",
     # Genel klavye kısayolları (KWin üzerinden). Boş bırakırsan o kısayol kapanır.
     "shortcuts": {
         "toggle_hide": "Meta+Alt+H",
         "toggle_panel": "Meta+Alt+I",
         "toggle_dnd": "Meta+Alt+D",
         "record": "Meta+Alt+R",
+        "palette": "Meta+Alt+Space",
     },
 }
 
@@ -94,25 +110,52 @@ def load():
 
 # Adanın Ayarlar sayfasından değiştirilebilen açık/kapalı ayarlar
 SWITCHES = ("suppress_plasma_popups", "hide_in_fullscreen", "clipboard_history",
-            "lyrics", "meeting_alerts", "privacy_dots", "weather_enabled", "phone")
+            "lyrics", "meeting_alerts", "privacy_dots", "weather_enabled", "phone", "spectrum")
 
 
 def set_switch(key, value):
     """Ayar dosyasında tek bir açık/kapalı ayarı değiştirir; dosyadaki diğer her şey korunur."""
     if key not in SWITCHES:
         return False
+    return set_value(key, bool(value))
+
+
+def set_value(key, value):
+    """Ayar dosyasında tek bir değeri değiştirir; dosyadaki diğer her şey korunur."""
     try:
         with open(PATH) as f:
             data = json.load(f)
     except Exception:
         data = dict(DEFAULTS)
-    data[key] = bool(value)
+    data[key] = value
     tmp = PATH + ".tmp"
     os.makedirs(os.path.dirname(PATH), exist_ok=True)
     with private_open(tmp) as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     os.replace(tmp, PATH)
     return True
+
+
+def clean_layout(d):
+    """Arayüzden gelen düzeni doğrular; bilinmeyen değerler varsayılana döner."""
+    base = DEFAULTS["layout"]
+    d = d if isinstance(d, dict) else {}
+    tabs = [t for t in d.get("tabs", []) if t in TABS]
+    tabs = list(dict.fromkeys(tabs)) + [t for t in TABS if t not in tabs]   # eksikler sona
+    hidden = [t for t in dict.fromkeys(d.get("hidden", [])) if t in TABS]
+    if len(hidden) >= len(TABS):          # en az bir sekme görünür kalsın
+        hidden = hidden[:-1]
+    accent = str(d.get("accent", "auto"))
+    if not re.fullmatch(r"#[0-9a-fA-F]{6}", accent):
+        accent = "auto"
+    return {
+        "tabs": tabs,
+        "hidden": hidden,
+        "open": d.get("open") if d.get("open") in ("last", "first") else base["open"],
+        "position": d.get("position") if d.get("position") in ("center", "left", "right") else base["position"],
+        "accent": accent,
+        "material": d.get("material") if d.get("material") in ("minimal", "ambient", "black") else base["material"],
+    }
 
 
 def mtime():

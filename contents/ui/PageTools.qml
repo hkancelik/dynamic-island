@@ -7,7 +7,7 @@ Item {
 
     property var sh
 
-    readonly property var names: ["Pano", "Anımsatıcı", "Raf", "Notlar"]
+    readonly property var names: [sh.t("Pano"), sh.t("Anımsatıcı"), sh.t("Raf"), sh.t("Notlar")]
     readonly property var counts: [sh.clip.length, sh.notes.length, sh.shelf.length, sh.docs.length]
     readonly property int sub: sh.toolsSub
 
@@ -21,16 +21,15 @@ Item {
             Layout.fillHeight: false
             Layout.preferredHeight: 28
             radius: 14
-            color: "#1c1c1e"
+            color: Qt.rgba(1, 1, 1, 0.11)
 
-            Rectangle {
-                width: (parent.width - 6) / page.names.length
-                height: 22
-                y: 3
-                x: 3 + page.sub * width
-                radius: 11
-                color: "#3a3a3c"
-                Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+            LiquidPill {
+                width: parent.width
+                height: parent.height
+                baseH: 22
+                restAlpha: 0.17
+                goalW: (parent.width - 6) / page.names.length
+                goalX: 3 + page.sub * goalW
             }
             Row {
                 anchors.fill: parent

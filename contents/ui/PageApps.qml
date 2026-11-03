@@ -43,7 +43,7 @@ Item {
         Layout.preferredHeight: 30
         Layout.fillWidth: true
         radius: 15
-        color: pMa.pressed ? "#48484a" : (pMa.containsMouse || hot ? "#3a3a3c" : "#2c2c2e")
+        color: pMa.pressed ? "#48484a" : (pMa.containsMouse || hot ? "#3a3a3c" : Qt.rgba(1, 1, 1, 0.17))
         Behavior on color { ColorAnimation { duration: 120 } }
         Row {
             anchors.centerIn: parent
@@ -87,7 +87,7 @@ Item {
                 anchors.centerIn: parent
                 renderType: Text.CurveRendering
                 font.family: "Inter"
-                text: "Çalışan uygulama yok"
+                text: sh.t("Çalışan uygulama yok")
                 color: Qt.rgba(1, 1, 1, 0.45)
                 font.pixelSize: 12
             }
@@ -169,37 +169,37 @@ Item {
 
             Pill {
                 icon: "camera-photo-symbolic"
-                label: "Görüntü"
+                label: sh.t("Görüntü")
                 onClicked: { sh.send("screenshot"); sh.panelOpen = false }
             }
             Pill {
                 readonly property string st: sh.rec.state
                 icon: sh.ic("isle-record-symbolic")
-                label: st === "recording" ? "Durdur" : (st === "idle" ? "Kayıt" : (st === "starting" ? "Başlıyor" : "Kaydediyor"))
+                label: st === "recording" ? sh.t("Durdur") : (st === "idle" ? sh.t("Kayıt") : (st === "starting" ? sh.t("Başlıyor") : sh.t("Kaydediyor")))
                 tint: "#ff453a"
                 hot: st === "recording"
                 onClicked: { sh.send("rec_toggle"); sh.panelOpen = false }
             }
             Pill {
                 icon: sh.ic("isle-lock-symbolic")
-                label: "Kilitle"
+                label: sh.t("Kilitle")
                 onClicked: { sh.send("lock"); sh.panelOpen = false }
             }
             Pill {
                 icon: sh.ic("isle-moon")
-                label: "Uyku"
+                label: sh.t("Uyku")
                 onClicked: { sh.send("suspend"); sh.panelOpen = false }
             }
             Pill {
                 icon: sh.ic("isle-reset")
-                label: page.armed === "reboot" ? "Emin?" : "Yeniden"
+                label: page.armed === "reboot" ? sh.t("Emin?") : sh.t("Yeniden")
                 tint: page.armed === "reboot" ? "#ffd60a" : "white"
                 hot: page.armed === "reboot"
                 onClicked: page.power("reboot")
             }
             Pill {
                 icon: "system-shutdown-symbolic"
-                label: page.armed === "poweroff" ? "Emin?" : "Kapat"
+                label: page.armed === "poweroff" ? sh.t("Emin?") : sh.t("Kapat")
                 tint: "#ff453a"
                 hot: page.armed === "poweroff"
                 onClicked: page.power("poweroff")

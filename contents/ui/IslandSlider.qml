@@ -8,7 +8,7 @@ Item {
 
     property real value: 0
     property color fillColor: "white"
-    property color trackColor: "#2c2c2e"
+    property color trackColor: Qt.rgba(1, 1, 1, 0.17)
     property int barHeight: 8
     property bool interactive: true
     property bool knob: false

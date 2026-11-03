@@ -1,0 +1,128 @@
+.pragma library
+// İngilizce çeviriler. Anahtar: arayüzdeki Türkçe metin (kaynak dil). Eksik anahtar Türkçe kalır.
+// Yeni dil eklemek için: bu dosyayı kopyala (ör. lang_de.js), main.qml'deki `dicts`e ekle.
+
+var dict = {
+    // Sekmeler
+    "Müzik": "Music", "Bildirim": "Alerts", "Odak": "Focus", "Takvim": "Calendar",
+    "Kontrol": "Controls", "Uygulama": "Apps", "Sistem": "System", "Araçlar": "Tools",
+
+    // Müzik ve sözler
+    "Bilinmeyen parça": "Unknown track", "Çalan bir şey yok": "Nothing playing",
+    "Sözler aranıyor": "Looking for lyrics", "Bu şarkının sözü yok": "No lyrics for this song",
+    "Sözler LRCLIB'den gelir": "Lyrics come from LRCLIB", "Enstrümantal": "Instrumental",
+    "Eşlik edecek söz yok": "Nothing to sing along to", "Sözlere ulaşılamıyor": "Can't reach lyrics",
+    "Bağlantını kontrol et · birazdan yeniden denenecek": "Check your connection · retrying shortly",
+
+    // Uygulamalar
+    "Çalışan uygulama yok": "No apps running", "Görüntü": "Screenshot", "Durdur": "Stop",
+    "Kayıt": "Record", "Başlıyor": "Starting", "Kaydediyor": "Saving", "Kilitle": "Lock",
+    "Uyku": "Sleep", "Emin?": "Sure?", "Yeniden": "Restart", "Kapat": "Shut down",
+
+    // Takvim
+    "Pt": "Mo", "Sa": "Tu", "Ça": "We", "Pe": "Th", "Cu": "Fr", "Ct": "Sa", "Pz": "Su",
+    "Bugün, ": "Today, ", "Etkinlik ekle · ör. Akşam yemeği 20:00": "Add event · e.g. Dinner 20:00",
+    "Katıl": "Join", "Tüm gün": "All day", "Etkinlik yok": "No events",
+    "Takvim bağlı değil": "No calendar connected",
+    "Apple iCloud hesabını \"caldav\" alanına ya da bir iCal adresini \"calendars\" alanına ekle.":
+        "Add an Apple iCloud account under \"caldav\" or an iCal URL under \"calendars\".",
+    "Ayar dosyasını aç": "Open config file",
+
+    // Kontrol
+    "Tasarruf": "Power saver", "Dengeli": "Balanced", "Performans": "Performance",
+    "Çıkış": "Output", "Gece Işığı": "Night Light", "Bağlı": "Connected",
+    "Bağlı değil": "Not connected", "Kapalı": "Off", "Açık": "On", "Ağ yok": "No network",
+    "Kablolu": "Wired", "Sinyal %1%": "Signal %1%", "Rahatsız Etme": "Do Not Disturb",
+    "Güç": "Power", "Şarj oluyor": "Charging", "Pilde": "On battery",
+
+    // Odak
+    "Mola": "Break", " · duraklatıldı": " · paused", "%1 odak tamamlandı": "%1 focus sessions done",
+    "Odakta Rahatsız Etme açılır": "Do Not Disturb turns on while focusing",
+    "Duraklat": "Pause", "Başlat": "Start", "Sürdür": "Resume",
+
+    // Bildirimler
+    "Bildirimler": "Notifications", "Temizle": "Clear", "Rahatsız Etme açık": "Do Not Disturb is on",
+    "Bildirim yok": "No notifications",
+
+    // Ayarlar
+    "Plasma bildirim pencereleri": "Plasma notification popups",
+    "Kapalıyken bildirimler yalnızca adada": "When off, notifications only show on the island",
+    "Tam ekranda gizle": "Hide in fullscreen", "Oyun ve videoda ada çekilir": "Retracts for games and video",
+    "Pano geçmişi": "Clipboard history", "Yalnızca bellekte tutulur": "Kept in memory only",
+    "Şarkı sözleri": "Lyrics", "LRCLIB'den, söz görünümü açıkken": "From LRCLIB, only while lyrics are open",
+    "Toplantı uyarısı": "Meeting alerts", "Etkinlikten 5 dk önce, Katıl ile": "5 min before, with a Join button",
+    "Gizlilik noktaları": "Privacy dots", "Kamera, mikrofon, ekran paylaşımı": "Camera, microphone, screen sharing",
+    "Hava durumu": "Weather", "Open-Meteo; konum ayar dosyasından": "Open-Meteo; location from config file",
+    "Telefon (KDE Connect)": "Phone (KDE Connect)", "Pil, gelen arama, telefonu çaldır": "Battery, incoming calls, ring phone",
+    "Claude Code onayları": "Claude Code approvals",
+    "Kurulu · izinler adada sorulur": "Installed · permissions are asked on the island",
+    "~/.claude/settings.json'a hook ekler": "Adds a hook to ~/.claude/settings.json",
+    "%1 iCal adresi": "%1 iCal URLs", "Ayar dosyası": "Config file",
+    "Dil": "Language", "Otomatik": "Automatic",
+    "Canlı Etkinlikler": "Live Activities",
+    "Gerçek ses spektrumu": "Live audio spectrum",
+    "Çubuklar müziğe göre; ses yalnızca bellekte çözümlenir": "Bars follow the music; audio is analysed in memory only",
+    "Malzeme": "Material", "Ambiyans": "Ambient", "Klasik siyah": "Classic black",
+    "Minimal": "Minimal",
+    "Sade derinlik: kısık albüm ışığı, ince kenar ışığı": "Quiet depth: a hint of album light, fine rim light",
+    "Canlı albüm renkleri, müzikle nefes alan ışık": "Vivid album colours, light that breathes with the music",
+    "Düz siyah çentik": "Plain black notch",
+    "Odak sayacı": "Focus timer", "Ekran görüntüsü": "Screenshot", "Adayı gizle / göster": "Hide / show island",
+    "Oynat / Duraklat": "Play / Pause", "Sonraki parça": "Next track", "Ayarlar": "Settings",
+    "Zamanlayıcı kur: %1": "Start timer: %1", "Bitince adada ses ve bildirim": "Chime and banner when it's done",
+    "Sekmeyi aç": "Open tab", "Komut": "Command", "Dosya": "File", "Hesap": "Calculator",
+    "Zamanlayıcı": "Timer", "Pano · kopyalamak için Enter": "Clipboard · Enter to copy",
+    "Web'de ara: %1": "Search the web: %1", "Ara, hesapla ya da bir komut yaz…": "Search, calculate or type a command…",
+    "Kopyala": "Copy", "Kabuk": "Shell", "Süreç": "Process", "Oturum": "Session", "Ayar": "Setting",
+    "Onayla ↵": "Confirm ↵", "Pencere": "Window", "Sekme": "Tab", "Geçmiş": "History",
+    "Genel": "General", "Sekmeler": "Tabs", "Görünüm": "Appearance",
+    "Panel açılınca": "Open panel on", "Son sekme": "Last tab", "İlk sekme": "First tab",
+    "Varsayılan": "Reset",
+    "Sürükleyerek sırala · dokunarak gizle ya da göster · üst çubukta da bir sekmeyi basılı tutup sürükleyebilirsin":
+        "Drag to reorder · tap to hide or show · you can also press and hold a tab in the top bar and drag it",
+    "Ada konumu": "Island position", "Sol": "Left", "Orta": "Center", "Sağ": "Right",
+    "Vurgu rengi": "Accent color", "Sabit renk": "Fixed color",
+    "Otomatik · çalan şarkının kapağından": "Automatic · from the album art",
+    "island komutu: run, timer, progress": "island command: run, timer, progress",
+
+    // Sistem
+    "%1 sa %2 dk": "%1 h %2 min", "%1 dk": "%1 min", "Dolu": "Full", "Beklemede": "Idle",
+    "Hava": "Weather", "İşlemci": "CPU", "Bellek": "Memory", "Ağ": "Network",
+    "Sıcaklık": "Temperature", "%1 dev/dk": "%1 RPM", "Fan yok": "No fan", "Pil yok": "No battery",
+    "%1 içinde dolar": "Full in %1", "%1 kaldı": "%1 left", "Açık kalma %1": "Up %1",
+    "Sağlık": "Health", "Limit": "Limit", "Yok": "None", "Döngü": "Cycles",
+    "Telefon çalıyor": "Phone ringing",
+
+    // Araçlar
+    "Pano": "Clipboard", "Anımsatıcı": "Reminders", "Raf": "Shelf", "Notlar": "Notes",
+    "şimdi": "now", "%1 dk.short": "%1m", "%1 sa.short": "%1h", "%1 gün.short": "%1d",
+    "%1 öğede ara ya da hesapla": "Search %1 items or calculate",
+    "Ara ya da hesapla (2*(3+4))": "Search or calculate (2*(3+4))",
+    "Sonuç kopyalandı": "Result copied", "Panoya kopyalandı": "Copied to clipboard",
+    "Pano geçmişi bu oturumda kullanılamıyor": "Clipboard history isn't available in this session",
+    "Kopyaladıkların burada görünür": "Things you copy show up here", "Sonuç yok": "No results",
+    "Yeni not": "New note", "Ek metin yok": "No additional text", "Başlık": "Title",
+    "Notunu yaz…": "Write your note…", "Not yok": "No notes", "Yeni not ile başla": "Start with a new note",
+    "Yeniden adlandır": "Rename", "Sil": "Delete", "Kes": "Cut", "Kopyala": "Copy",
+    "Yapıştır": "Paste", "Tümünü seç": "Select all",
+    "Anımsatıcılar": "Reminders", "Yeni anımsatıcı": "New reminder", "Anımsatıcı yok": "No reminders",
+    "Rafa eklendi": "Added to shelf", "%1 dosya": "%1 files", "Dosya rafı": "File shelf",
+    "Rafı boşalt": "Empty shelf", "Bırak": "Drop", "Dosyaları buraya sürükle": "Drag files here",
+    "Sonra başka bir uygulamaya sürükleyip bırakabilirsin": "Then drag them into any other app",
+
+    // Ada
+    "%1 g.short": "%1d", "Şimdi · %1": "Now · %1", "%1 dk sonra · %2": "in %1 min · %2",
+    "%1 · %2 sa %3 dk": "%1 · in %2 h %3 min",
+    "Eklendi · ": "Added · ", "Eklenemedi: ": "Couldn't add: ",
+    "Claude Code bitirdi": "Claude Code finished", "Süre doldu · ": "Time's up · ",
+    "Mola zamanı · %1 dk": "Break time · %1 min", "Odak zamanı · %1 dk": "Focus time · %1 min",
+    "Kayıt başlıyor…": "Recording starts…", "Ekran kaydı başladı": "Screen recording started",
+    "Kayıt kaydediliyor…": "Saving recording…", "Ekran kaydı": "Screen recording",
+    "Kayıt kaydedildi": "Recording saved", " · klasörü açmak için dokun": " · tap to open folder",
+    " · %1 dk sonra": " · in %1 min", " · şimdi": " · now", "Sessiz": "Muted",
+    "Rafa bırak": "Drop on shelf", "Dosyayı bırakınca rafa eklenir": "Release to add it to the shelf",
+    "%1 izin istiyor": "%1 wants permission", "Reddet": "Deny", "İzin ver": "Allow",
+    "Her zaman": "Always", "Bağlandı": "Connected", "İnternet bağlantısı kesildi": "Internet connection lost",
+    "Bağlantı kesildi": "Disconnected", "Kablolu ağ": "Wired network",
+    "Pil azaldı": "Battery low", "Şarj aletini tak": "Plug in the charger", "Şarj aleti bağlı": "Charger connected"
+}

@@ -22,7 +22,7 @@ Item {
             Text {
                 renderType: Text.CurveRendering
                 font.family: "Inter"
-                text: "Bildirimler"
+                text: sh.t("Bildirimler")
                 color: Qt.rgba(1, 1, 1, 0.6)
                 font.pixelSize: 13
                 font.weight: Font.DemiBold
@@ -40,13 +40,13 @@ Item {
                 Layout.preferredWidth: clearText.implicitWidth + 24
                 Layout.preferredHeight: 26
                 radius: 13
-                color: clearMa.pressed ? "#48484a" : clearMa.containsMouse ? "#3a3a3c" : "#2c2c2e"
+                color: clearMa.pressed ? "#48484a" : clearMa.containsMouse ? "#3a3a3c" : Qt.rgba(1, 1, 1, 0.17)
                 Text {
                     id: clearText
                     renderType: Text.CurveRendering
                     font.family: "Inter"
                     anchors.centerIn: parent
-                    text: "Temizle"
+                    text: sh.t("Temizle")
                     color: "white"
                     font.pixelSize: 12
                     font.weight: Font.DemiBold
@@ -192,7 +192,7 @@ Item {
             renderType: Text.CurveRendering
             font.family: "Inter"
             anchors.horizontalCenter: parent.horizontalCenter
-            text: sh.ui.dnd ? "Rahatsız Etme açık" : "Bildirim yok"
+            text: sh.ui.dnd ? sh.t("Rahatsız Etme açık") : sh.t("Bildirim yok")
             color: Qt.rgba(1, 1, 1, 0.55)
             font.pixelSize: 13
             font.weight: Font.DemiBold

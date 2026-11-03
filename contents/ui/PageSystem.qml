@@ -20,12 +20,12 @@ Item {
     function duration(sec) {
         if (sec < 0) return "—"
         var h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60)
-        return h > 0 ? h + " sa " + m + " dk" : m + " dk"
+        return h > 0 ? sh.t("%1 sa %2 dk").arg(h).arg(m) : sh.t("%1 dk").arg(m)
     }
     function tempColor(t) { return t >= 85 ? "#ff453a" : (t >= 70 ? "#ff9f0a" : "#30d158") }
-    readonly property string batState: bat.state === "Charging" ? "Şarj oluyor"
-                                      : bat.state === "Full" ? "Dolu"
-                                      : bat.state === "Discharging" ? "Pilde" : "Beklemede"
+    readonly property string batState: bat.state === "Charging" ? sh.t("Şarj oluyor")
+                                      : bat.state === "Full" ? sh.t("Dolu")
+                                      : bat.state === "Discharging" ? sh.t("Pilde") : sh.t("Beklemede")
 
     component StatCard: Rectangle {
         id: card
@@ -42,7 +42,7 @@ Item {
         Layout.fillHeight: true
         Layout.preferredWidth: 1
         radius: 14
-        color: "#1c1c1e"
+        color: Qt.rgba(1, 1, 1, 0.11)
         clip: true
 
         Spark {
@@ -124,7 +124,7 @@ Item {
             StatCard {
                 visible: page.sh.weather.ok === true
                 Layout.preferredWidth: 1.3
-                title: page.sh.weather.place || "Hava"
+                title: page.sh.weather.place || sh.t("Hava")
                 value: page.sh.weather.ok ? page.sh.weather.temp + "°" : ""
                 sub: page.sh.weather.ok ? page.sh.weather.text : ""
                 icon: page.sh.weather.ok ? page.sh.weather.icon : ""
@@ -144,7 +144,7 @@ Item {
                 }
             }
             StatCard {
-                title: "İşlemci"
+                title: sh.t("İşlemci")
                 value: page.ready ? page.st.cpu + "%" : "…"
                 sub: page.ready ? page.st.temp + "°C" : ""
                 accent: "#0a84ff"
@@ -152,23 +152,23 @@ Item {
                 seriesMax: 100
             }
             StatCard {
-                title: "Bellek"
+                title: sh.t("Bellek")
                 value: page.ready ? page.st.mem + "%" : "…"
                 sub: page.ready ? page.st.memUsed + " / " + page.st.memTotal + " GB" : ""
                 accent: page.ready && page.st.mem > 85 ? "#ff453a" : "#5e5ce6"
                 bar: page.ready ? page.st.mem / 100 : 0
             }
             StatCard {
-                title: "Ağ"
+                title: sh.t("Ağ")
                 value: page.ready ? page.speed(page.st.down) : "…"
                 sub: page.ready ? "↑ " + page.speed(page.st.up) : ""
                 accent: "#30d158"
                 series: page.ready ? page.st.downHist : []
             }
             StatCard {
-                title: "Sıcaklık"
+                title: sh.t("Sıcaklık")
                 value: page.ready ? page.st.temp + "°C" : "…"
-                sub: page.ready ? (page.st.fan > 0 ? page.st.fan + " dev/dk" : "Fan yok") : ""
+                sub: page.ready ? (page.st.fan > 0 ? sh.t("%1 dev/dk").arg(page.st.fan) : sh.t("Fan yok")) : ""
                 accent: page.ready ? page.tempColor(page.st.temp) : "#30d158"
                 bar: page.ready ? page.st.temp / 100 : 0
             }
@@ -179,7 +179,7 @@ Item {
             Layout.fillWidth: true
             Layout.preferredHeight: 52
             radius: 14
-            color: "#1c1c1e"
+            color: Qt.rgba(1, 1, 1, 0.11)
 
             RowLayout {
                 anchors.fill: parent
@@ -201,7 +201,7 @@ Item {
                     Text {
                         renderType: Text.CurveRendering
                         font.family: "Inter"
-                        text: page.bat.present ? "%" + page.bat.level + " · " + page.batState : "Pil yok"
+                        text: page.bat.present ? sh.pct(page.bat.level) + " · " + page.batState : sh.t("Pil yok")
                         color: "white"
                         font.pixelSize: 13
                         font.weight: Font.DemiBold
@@ -210,18 +210,18 @@ Item {
                         renderType: Text.CurveRendering
                         font.family: "Inter"
                         text: page.bat.present && page.bat.time > 0
-                              ? page.duration(page.bat.time) + (page.bat.charging ? " içinde dolar" : " kaldı")
-                              : (page.ready ? "Açık kalma " + page.duration(page.st.uptime || 0) : "")
+                              ? sh.t(page.bat.charging ? "%1 içinde dolar" : "%1 kaldı").arg(page.duration(page.bat.time))
+                              : (page.ready ? sh.t("Açık kalma %1").arg(page.duration(page.st.uptime || 0)) : "")
                         color: Qt.rgba(1, 1, 1, 0.5)
                         font.pixelSize: 11
                     }
                 }
                 Repeater {
                     model: page.bat.present ? [
-                        { k: "Güç", v: page.bat.rate > 0 ? page.bat.rate + " W" : "—" },
-                        { k: "Sağlık", v: page.bat.health > 0 ? "%" + page.bat.health : "—" },
-                        { k: "Limit", v: page.bat.limit > 0 ? "%" + page.bat.limit : "Yok" },
-                        { k: "Döngü", v: String(page.bat.cycles) }
+                        { k: sh.t("Güç"), v: page.bat.rate > 0 ? page.bat.rate + " W" : "—" },
+                        { k: sh.t("Sağlık"), v: page.bat.health > 0 ? sh.pct(page.bat.health) : "—" },
+                        { k: sh.t("Limit"), v: page.bat.limit > 0 ? sh.pct(page.bat.limit) : sh.t("Yok") },
+                        { k: sh.t("Döngü"), v: String(page.bat.cycles) }
                     ] : []
                     Column {
                         required property var modelData
@@ -252,7 +252,7 @@ Item {
                     Layout.preferredWidth: phoneRow.implicitWidth + 20
                     Layout.preferredHeight: 30
                     radius: 15
-                    color: phoneMa.containsMouse ? "#3a3a3c" : "#2c2c2e"
+                    color: phoneMa.containsMouse ? "#3a3a3c" : Qt.rgba(1, 1, 1, 0.17)
                     opacity: dev && dev.reachable ? 1 : 0.45
                     Row {
                         id: phoneRow
@@ -268,8 +268,8 @@ Item {
                             renderType: Text.CurveRendering
                             font.family: "Inter"
                             anchors.verticalCenter: parent.verticalCenter
-                            text: !phoneChip.dev ? "" : !phoneChip.dev.reachable ? "Bağlı değil"
-                                  : phoneChip.dev.battery >= 0 ? "%" + phoneChip.dev.battery : phoneChip.dev.name
+                            text: !phoneChip.dev ? "" : !phoneChip.dev.reachable ? sh.t("Bağlı değil")
+                                  : phoneChip.dev.battery >= 0 ? sh.pct(phoneChip.dev.battery) : phoneChip.dev.name
                             color: "white"
                             font.pixelSize: 12
                             font.weight: Font.DemiBold

@@ -1,0 +1,14 @@
+name: Feature request
+description: An idea for the island
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like the island to do?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why? When would you use it?

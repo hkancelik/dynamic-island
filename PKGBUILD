@@ -1,7 +1,7 @@
 # Maintainer: Hakan <nailhakann@gmail.com>
 # Yerel kaynaktan paket: bu klasörde `makepkg -si`
 pkgname=dynamic-island
-pkgver=0.1.0
+pkgver=0.2.0
 pkgrel=1
 pkgdesc="Dynamic Island for KDE Plasma 6 (Wayland): music, focus, notifications, calendar, controls"
 arch=('any')
@@ -21,7 +21,7 @@ source=()
 package() {
     local src="$startdir" dest="$pkgdir/usr/share/$pkgname"
     install -dm755 "$dest"
-    cp -r "$src"/*.py "$src"/*.sh "$src/contents" "$dest/"
+    cp -r "$src"/*.py "$src"/*.sh "$src/island" "$src/contents" "$dest/"
     rm -rf "$dest/__pycache__"
 
     # Kullanıcı servisi (kurulu yol sabit)
@@ -35,6 +35,8 @@ package() {
     install -dm755 "$pkgdir/usr/bin"
     ln -s "/usr/share/$pkgname/launch.sh" "$pkgdir/usr/bin/dynamic-island"
     ln -s "/usr/share/$pkgname/ctl.sh" "$pkgdir/usr/bin/dynamic-island-ctl"
+    ln -s "/usr/share/$pkgname/island" "$pkgdir/usr/bin/island"
+    install -Dm644 "$src/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
     install -Dm644 "$src/contents/icons/LICENSE-isle-GPL3.txt" \
         "$pkgdir/usr/share/licenses/$pkgname/LICENSE-isle-GPL3.txt"
 }

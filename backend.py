@@ -7,7 +7,6 @@ olduğunda durumu günceller. QML tarafı 127.0.0.1 üzerinden
   POST /cmd         -> {"cmd": "...", "arg": ...}
 ile konuşur.
 """
-import glob
 import hmac
 import json
 import os
@@ -20,7 +19,7 @@ import time
 from datetime import datetime, timedelta
 from datetime import time as dtime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote_plus, urlparse
 
 import gi
 
@@ -33,11 +32,14 @@ try:  # GLib >= 2.78
 except ImportError:
     _signal_add = GLib.unix_signal_add
 
+import activities as activities_mod  # noqa: E402
 import apps  # noqa: E402
 import audio  # noqa: E402
 import calendar_ics  # noqa: E402
 import caldav  # noqa: E402
 import config  # noqa: E402
+import i18n  # noqa: E402
+from i18n import _  # noqa: E402
 import focus  # noqa: E402
 import lyrics as lyrics_mod  # noqa: E402
 import privacy  # noqa: E402
@@ -46,6 +48,8 @@ import weather as weather_mod  # noqa: E402
 from alerts import Alerts  # noqa: E402
 from agents import Agents  # noqa: E402
 import controls  # noqa: E402
+import palette as palette_mod  # noqa: E402
+import spectrum as spectrum_mod  # noqa: E402
 import sysinfo  # noqa: E402
 from clipboard import Clipboard  # noqa: E402
 from record import Recorder  # noqa: E402
@@ -98,6 +102,8 @@ class State:
             "rec": {"state": "idle", "since": 0, "error": "", "last": ""},
             "panelReq": 0,
             "tabReq": {"seq": 0},
+            "activities": {"items": [], "done": {"seq": 0}},
+            "paletteReq": {"seq": 0, "q": ""},
         }
         self.kv = {k: 1 for k in self.data}  # anahtar -> son değiştiği sürüm
 
@@ -327,8 +333,8 @@ def parse_quick_event(text, day_ms):
                 e += timedelta(days=1)
         else:
             e = s + timedelta(hours=1)
-        return title or "Etkinlik", s, e, False
-    return title.strip() or "Etkinlik", day, day + timedelta(days=1), True
+        return title or _("Etkinlik"), s, e, False
+    return title.strip() or _("Etkinlik"), day, day + timedelta(days=1), True
 
 
 def cal_add(arg):
@@ -347,7 +353,7 @@ def cal_add(arg):
                 acc.add(target, title, s, e, all_day)
                 break
         if target is None:
-            raise caldav.CalDAVError("yazılabilir takvim yok (config'e caldav hesabı ekle)")
+            raise caldav.CalDAVError(_("yazılabilir takvim yok (config'e caldav hesabı ekle)"))
         state.update("calAdd", {"seq": _cal_seq, "ok": True, "msg": f"{target['name']}: {title}"})
         refresh_calendar()
     except Exception as ex:
@@ -374,6 +380,8 @@ def publish_settings():
         "accounts": [a.get("name") or a.get("user", "") for a in cfg.get("caldav", []) if a.get("user")],
         "calendars": len(cfg.get("calendars", [])),
         "shortcuts": cfg.get("shortcuts", {}),
+        "language": cfg.get("language", "auto"),
+        "layout": config.clean_layout(cfg.get("layout")),
     })
 
 
@@ -401,6 +409,22 @@ def apply_switch(key, value):
         weather.refresh()
     elif key == "phone":
         set_phone(bool(value))
+    publish_settings()
+
+
+def set_layout(changes):
+    global cfg
+    merged = {**config.clean_layout(cfg.get("layout")), **changes}
+    config.set_value("layout", config.clean_layout(merged))
+    cfg = config.load()
+    publish_settings()
+
+
+def set_language(lang):
+    global cfg
+    config.set_value("language", lang)
+    cfg = config.load()
+    i18n.reload()
     publish_settings()
 
 
@@ -673,6 +697,9 @@ lyrics = None
 weather = None
 phone = None
 agents = Agents(lambda v: state.update("agents", v))
+live = activities_mod.Activities(lambda v: state.update("activities", v))
+spectrum = spectrum_mod.Spectrum()
+palette = palette_mod.Palette(copy=lambda text: clip.copy_text(text[:2000]) if clip else None)
 ui = config.load_ui()
 
 
@@ -712,12 +739,19 @@ def execute(cmd, arg):
         ui["hidden"] = (not ui["hidden"]) if cmd == "toggle_hide" else cmd == "hide"
         config.save_ui(ui)
         state.update("ui", dict(ui))
+    elif cmd == "set_language" and isinstance(arg, str) and re.fullmatch(r"auto|[a-z]{2}", arg):
+        set_language(arg)
+    elif cmd == "set_layout" and isinstance(arg, dict):
+        # Kısmi güncelleme: yalnızca gönderilen alanlar değişir
+        set_layout(arg)
     elif cmd == "setting" and isinstance(arg, dict):
         apply_switch(str(arg.get("key", "")), bool(arg.get("value")))
     elif cmd == "phone_ring" and phone:
         bg(lambda: phone.ring(str(arg)))
     elif cmd == "claude_hooks":
         bg(lambda: set_claude_hooks(bool(arg)))
+    elif cmd == "activity_end":
+        live.end(str(arg), "cancelled")
     elif cmd == "agent_answer" and isinstance(arg, dict):
         agents.answer(int(arg.get("id", 0)), str(arg.get("answer", "")))
     elif cmd == "lyrics_want" and lyrics:
@@ -766,6 +800,22 @@ def execute(cmd, arg):
         if "sub" in arg:
             req["sub"] = int(arg["sub"])
         state.update("tabReq", req)
+    elif cmd == "palette":
+        # arg: isteğe bağlı başlangıç araması (island palette "5m çay")
+        state.update("paletteReq", {"seq": state.data["paletteReq"]["seq"] + 1,
+                                    "q": str(arg)[:120] if isinstance(arg, str) else ""})
+    elif cmd == "palette_run" and isinstance(arg, dict):
+        bg(lambda: palette.run(arg))
+    elif cmd == "timer_start" and isinstance(arg, dict):
+        try:
+            live.set({"title": str(arg.get("title", "")) or _("Zamanlayıcı"), "icon": "timer",
+                      "duration": str(arg.get("duration", ""))})
+        except ValueError:
+            pass
+    elif cmd == "web_search" and isinstance(arg, str) and arg.strip():
+        url = "https://duckduckgo.com/?q=" + quote_plus(arg.strip()[:200])
+        subprocess.Popen(["xdg-open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
     elif cmd == "toggle_panel":
         state.update("panelReq", state.data["panelReq"] + 1)
     elif cmd == "stats_on" and stats:
@@ -885,6 +935,16 @@ class Handler(BaseHTTPRequestHandler):
         if not self.host_ok():
             return self.reply(403)
         u = urlparse(self.path)
+        if u.path == "/spectrum":
+            # Müzik çubukları ~30 kez/sn sorar; yalnızca son bant değerleri (ayrı, hafif uç)
+            levels = spectrum.levels() if cfg.get("spectrum", True) and spectrum.available else []
+            return self.reply(200, json.dumps({"b": levels}, separators=(",", ":")).encode())
+        if u.path == "/search":
+            # Komut paleti: uygulamalar + dosyalar (hesap makinesi, komutlar arayüzde)
+            qs = parse_qs(u.query)
+            q, part = qs.get("q", [""])[0], qs.get("part", ["all"])[0]
+            return self.reply(200, json.dumps({"q": q, "part": part,
+                                               "r": palette.search(q, part if part in ("fast", "slow") else "all")}).encode())
         if u.path != "/state":
             return self.reply(404)
         try:
@@ -914,6 +974,14 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             self.reply(400)
 
+    def activity(self):
+        """Canlı Etkinlikler: island komutu ve betikler (bkz. activities.py)."""
+        try:
+            out = live.handle(self.body())
+        except (ValueError, TypeError, AttributeError) as e:
+            return self.reply(400, json.dumps({"error": str(e)}).encode())
+        self.reply(200, json.dumps(out).encode())
+
     def do_POST(self):
         # Tarayıcılardan gelen CSRF'i engelle: özel başlık ön-kontrol (preflight)
         # gerektirir ve biz buna yanıt vermiyoruz.
@@ -921,6 +989,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(403)
         if self.path.startswith("/agent/"):
             return self.agent(self.path[len("/agent/"):])
+        if self.path == "/activity":
+            return self.activity()
         if self.path != "/cmd":
             return self.reply(404)
         try:
@@ -982,7 +1052,7 @@ def main():
         fs_watch = Fullscreen(
             lambda b: state.update("fullscreen", b and cfg.get("hide_in_fullscreen", True)),
             lambda c: GLib.idle_add(execute, c, None),
-            cfg.get("shortcuts", {}),
+            {**config.DEFAULTS["shortcuts"], **cfg.get("shortcuts", {})},   # yeni kısayollar eski ayarlara da gelsin
         )
         fs_watch.load()
     except Exception as e:

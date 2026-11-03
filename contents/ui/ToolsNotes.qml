@@ -25,7 +25,7 @@ Item {
             Text {
                 renderType: Text.CurveRendering
                 font.family: "Inter"
-                text: "Anımsatıcılar"
+                text: sh.t("Anımsatıcılar")
                 color: page.orange
                 font.pixelSize: 12
                 font.weight: Font.DemiBold
@@ -123,7 +123,7 @@ Item {
             id: input
             Layout.fillWidth: true
             Layout.preferredHeight: 28
-            placeholderText: "Yeni anımsatıcı"
+            placeholderText: sh.t("Yeni anımsatıcı")
             placeholderTextColor: Qt.rgba(1, 1, 1, 0.4)
             color: "white"
             font.family: "Inter"
@@ -155,7 +155,7 @@ Item {
         font.family: "Inter"
         visible: sh.notes.length === 0
         anchors.centerIn: parent
-        text: "Anımsatıcı yok"
+        text: sh.t("Anımsatıcı yok")
         color: Qt.rgba(1, 1, 1, 0.55)
         font.pixelSize: 13
         font.weight: Font.DemiBold

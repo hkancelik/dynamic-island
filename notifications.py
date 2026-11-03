@@ -50,7 +50,7 @@ class _Server(dbus.service.Object):
 
     @dbus.service.method(IFACE, in_signature="", out_signature="as")
     def GetCapabilities(self):
-        return ["body", "icon-static", "persistence"]
+        return ["actions", "body", "icon-static", "persistence"]
 
     @dbus.service.method(IFACE, in_signature="susssasa{sv}i", out_signature="u")
     def Notify(self, app, replaces, icon, summary, body, actions, hints, timeout):
@@ -58,6 +58,9 @@ class _Server(dbus.service.Object):
         if not replaces:
             self.next_id += 1
         entry = self.owner._add(app, int(replaces), icon, summary, body, hints, nid)
+        if entry is not None:
+            # "default" eylemi: bildirime tıklanınca uygulama ilgili sohbeti/e-postayı açar
+            entry["default"] = "default" in [str(a) for a in actions[::2]]
         return nid if entry is not None else 0
 
     @dbus.service.method(IFACE, in_signature="u", out_signature="")
@@ -74,6 +77,10 @@ class _Server(dbus.service.Object):
     def NotificationClosed(self, nid, reason):
         pass
 
+    @dbus.service.signal(IFACE, signature="us")
+    def ActionInvoked(self, nid, action):
+        pass
+
 
 class Notifications:
     def __init__(self, state, ignore_apps=(), suppress_popups=True):
@@ -85,13 +92,15 @@ class Notifications:
         self.counter = 0
         self.seq = 0
         self.mode = ""
+        self._server = None
         self._keep = []     # bağlantı/nesneleri canlı tut
 
         bus = dbus.SessionBus()
         try:
             name = dbus.service.BusName(IFACE, bus, allow_replacement=True,
                                         replace_existing=False, do_not_queue=True)
-            self._keep += [name, _Server(bus, self)]
+            self._server = _Server(bus, self)
+            self._keep += [name, self._server]
             self.mode = "server"
             # Sonradan başka bir servis adı devralırsa izleme moduna geç
             bus.add_signal_receiver(self._owner_changed, "NameOwnerChanged",
@@ -198,10 +207,16 @@ class Notifications:
         self._publish()
 
     def open(self, item_id):
-        """Bildirimin kaynağı olan uygulamayı aç ve bildirimi kaldır."""
+        """Bildirime tıklandı: uygulamanın "default" eylemi varsa onu tetikle (ilgili sohbet,
+        e-posta, sekme açılır); yoksa kaynak uygulamayı başlat/öne getir. Sonra bildirimi kaldır."""
         for i in self.items:
             if i["id"] == item_id:
-                apps.launch_desktop(i.get("desktop", ""))
+                nid = i.get("nid")
+                if self._server is not None and nid and i.get("default"):
+                    self._server.ActionInvoked(nid, "default")
+                    self._server.NotificationClosed(nid, 2)   # 2: kullanıcı kapattı
+                else:
+                    apps.launch_desktop(i.get("desktop", ""))
                 break
         self.dismiss(item_id)
 

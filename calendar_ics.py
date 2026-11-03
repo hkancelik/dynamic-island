@@ -4,7 +4,7 @@ import glob
 import os
 import re
 import urllib.request
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 # Aylık görünüm için: bir hafta geriden iki ay ileriye

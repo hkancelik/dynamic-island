@@ -28,7 +28,7 @@ Item {
             renderType: Text.CurveRendering
             font.family: "Inter"
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "Çalan bir şey yok"
+            text: sh.t("Çalan bir şey yok")
             color: Qt.rgba(1, 1, 1, 0.55)
             font.pixelSize: 13
             font.weight: Font.DemiBold
@@ -75,7 +75,7 @@ Item {
                         renderType: Text.CurveRendering
                         font.family: "Inter"
                         width: parent.width
-                        text: page.media.title || "Bilinmeyen parça"
+                        text: page.media.title || sh.t("Bilinmeyen parça")
                         color: "white"
                         font.pixelSize: 17
                         font.weight: Font.DemiBold
@@ -152,8 +152,21 @@ Item {
                 }
             }
 
+            Item {
+                width: parent.width
+                height: 42
+                // Kontrollerin arkasında gerçek ses spektrumu: bas ortada, tizler kenarlarda
+                Spectrum {
+                    anchors.fill: parent
+                    anchors.topMargin: 4
+                    opacity: sh.vivid ? 0.55 : 0.28
+                    color: sh.glowColor
+                    levels: sh.spectrum
+                    gap: 3
+                    centerGap: 200   // kontroller (önceki · oynat · sonraki) çevresinde boşluk
+                }
             Row {
-                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.centerIn: parent
                 spacing: 20
                 CtlButton {
                     width: 36; height: 36; iconSize: 20
@@ -172,6 +185,7 @@ Item {
                     enabledBtn: page.media.canNext !== false
                     onClicked: sh.send("next")
                 }
+            }
             }
         }
     }
@@ -239,7 +253,7 @@ Item {
                 width: ListView.view.width
                 height: 40
                 radius: 12
-                color: current || outMa.containsMouse ? "#1c1c1e" : "transparent"
+                color: current || outMa.containsMouse ? Qt.rgba(1, 1, 1, 0.11) : "transparent"
                 Ico {
                     x: 12
                     anchors.verticalCenter: parent.verticalCenter

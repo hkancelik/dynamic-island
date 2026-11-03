@@ -27,10 +27,10 @@ Item {
     function ago(ts) {
         if (!ts) return ""
         var m = Math.floor((Date.now() - ts) / 60000)
-        if (m < 1) return "şimdi"
-        if (m < 60) return m + " dk"
+        if (m < 1) return sh.t("şimdi")
+        if (m < 60) return sh.t("%1 dk.short").arg(m)
         var h = Math.floor(m / 60)
-        return h < 24 ? h + " sa" : Math.floor(h / 24) + " gün"
+        return h < 24 ? sh.t("%1 sa.short").arg(h) : sh.t("%1 gün.short").arg(Math.floor(h / 24))
     }
 
     readonly property var shown: {
@@ -52,7 +52,7 @@ Item {
                 id: search
                 Layout.fillWidth: true
                 Layout.preferredHeight: 28
-                placeholderText: sh.clip.length > 0 ? sh.clip.length + " öğede ara ya da hesapla" : "Ara ya da hesapla (2*(3+4))"
+                placeholderText: sh.clip.length > 0 ? sh.t("%1 öğede ara ya da hesapla").arg(sh.clip.length) : sh.t("Ara ya da hesapla (2*(3+4))")
                 placeholderTextColor: Qt.rgba(1, 1, 1, 0.4)
                 color: "white"
                 font.family: "Inter"
@@ -66,7 +66,7 @@ Item {
                 onAccepted: { if (page.calc) page.copyCalc(); else if (page.shown.length > 0) page.copy(page.shown[0]) }
                 background: Rectangle {
                     radius: 14
-                    color: "#1c1c1e"
+                    color: Qt.rgba(1, 1, 1, 0.11)
                     border.width: search.activeFocus ? 1 : 0
                     border.color: Qt.rgba(1, 1, 1, 0.16)
                     Ico {
@@ -83,13 +83,13 @@ Item {
                 Layout.preferredWidth: clrText.implicitWidth + 24
                 Layout.preferredHeight: 26
                 radius: 13
-                color: clrMa.pressed ? "#48484a" : clrMa.containsMouse ? "#3a3a3c" : "#2c2c2e"
+                color: clrMa.pressed ? "#48484a" : clrMa.containsMouse ? "#3a3a3c" : Qt.rgba(1, 1, 1, 0.17)
                 Text {
                     id: clrText
                     renderType: Text.CurveRendering
                     font.family: "Inter"
                     anchors.centerIn: parent
-                    text: "Temizle"
+                    text: sh.t("Temizle")
                     color: "white"
                     font.pixelSize: 12
                     font.weight: Font.DemiBold
@@ -233,9 +233,9 @@ Item {
         width: parent.width - 48
         horizontalAlignment: Text.AlignHCenter
         wrapMode: Text.Wrap
-        text: !sh.clipOn ? "Pano geçmişi bu oturumda kullanılamıyor"
-            : sh.clip.length === 0 ? "Kopyaladıkların burada görünür"
-            : "Sonuç yok"
+        text: !sh.clipOn ? sh.t("Pano geçmişi bu oturumda kullanılamıyor")
+            : sh.clip.length === 0 ? sh.t("Kopyaladıkların burada görünür")
+            : sh.t("Sonuç yok")
         color: Qt.rgba(1, 1, 1, 0.55)
         font.pixelSize: 13
         font.weight: Font.DemiBold

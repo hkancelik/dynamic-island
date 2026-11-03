@@ -63,7 +63,7 @@ Item {
                         renderType: Text.CurveRendering
                         font.family: "Inter"
                         width: parent.width
-                        text: sh.media.title || "Bilinmeyen parça"
+                        text: sh.media.title || sh.t("Bilinmeyen parça")
                         color: "white"
                         font.pixelSize: 15
                         font.weight: Font.DemiBold
@@ -259,11 +259,11 @@ Item {
                 anchors.centerIn: parent
                 spacing: 8
                 readonly property var st: ({
-                    "loading": ["", "Sözler aranıyor", ""],
-                    "not_found": ["isle-lyrics", "Bu şarkının sözü yok", "Sözler LRCLIB'den gelir"],
-                    "instrumental": ["isle-music", "Enstrümantal", "Eşlik edecek söz yok"],
-                    "error": ["isle-lyrics", "Sözlere ulaşılamıyor", "Bağlantını kontrol et · birazdan yeniden denenecek"]
-                })[lyr.status] || ["", "Sözler aranıyor", ""]
+                    "loading": ["", sh.t("Sözler aranıyor"), ""],
+                    "not_found": ["isle-lyrics", sh.t("Bu şarkının sözü yok"), sh.t("Sözler LRCLIB'den gelir")],
+                    "instrumental": ["isle-music", sh.t("Enstrümantal"), sh.t("Eşlik edecek söz yok")],
+                    "error": ["isle-lyrics", sh.t("Sözlere ulaşılamıyor"), sh.t("Bağlantını kontrol et · birazdan yeniden denenecek")]
+                })[lyr.status] || ["", sh.t("Sözler aranıyor"), ""]
                 Row {
                     visible: parent.st[0] === ""
                     anchors.horizontalCenter: parent.horizontalCenter

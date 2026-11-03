@@ -14,7 +14,7 @@ Rectangle {
 
     implicitHeight: 62
     radius: 14
-    color: ma.containsMouse ? "#2c2c2e" : "#1c1c1e"
+    color: ma.containsMouse ? Qt.rgba(1, 1, 1, 0.17) : Qt.rgba(1, 1, 1, 0.11)
     scale: ma.pressed ? 0.95 : 1
 
     Behavior on color { ColorAnimation { duration: 160 } }
@@ -25,7 +25,7 @@ Rectangle {
         id: dot
         x: 10; y: 9
         width: 26; height: 26; radius: 13
-        color: t.active ? t.accent : "#2c2c2e"
+        color: t.active ? t.accent : Qt.rgba(1, 1, 1, 0.17)
         Behavior on color { ColorAnimation { duration: 160 } }
         Ico {
             anchors.centerIn: parent
