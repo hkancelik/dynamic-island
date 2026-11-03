@@ -25,7 +25,7 @@ KDE Plasma 6 (Wayland) için ekranın üstünde duran, Apple'ın Dynamic Island'
   yer imleri, dünya saati (`saat tokyo`), renk (`#0a84ff`), Unicode ve emoji (`u:heart`), pano, ada komutları.
   ↑/↓ seç, Enter çalıştır, Esc kapat
 - **Malzeme (Ayarlar → Görünüm):** Minimal (varsayılan: derin siyah, albüm renginin yalnızca bir iması,
-  ince kenar ışığı, buzlu cam kartlar), Sıvı cam (mercek kırılması, buzlu cam, özel parlama; bkz. docs/liquid-glass.md), Ambiyans (kapak renkleri panele yayılır, ışık müzikle nefes alır),
+  ince kenar ışığı, buzlu cam kartlar), Sıvı cam (mercek kırılması, buzlu cam, özel parlama; imleci izleyen ışık, dokunma dalgası, duvar kağıdı yansıması, maddeleşme; bkz. docs/liquid-glass.md), Ambiyans (kapak renkleri panele yayılır, ışık müzikle nefes alır),
   Klasik siyah
 - **Gerçek ses spektrumu:** müzik çubukları hoparlöre giden sesin frekanslarına göre (saf Python FFT,
   yalnızca bellekte, yalnızca çubuklar görünürken)
@@ -121,7 +121,7 @@ Gerekenler: `qml6`, `layer-shell-qt`, Kirigami, Python 3 (PyGObject, dbus-python
 - `i18n.py`, `contents/ui/lang_en.js`: çeviriler (kaynak dil Türkçe)
 - `tests/`: `python -m unittest discover -s tests -t .`
 - `backend.py`: durum + komut sunucusu (127.0.0.1:47615), MPRIS, ses, ağ, takvim, bildirimler
-- `weather.py`, `football.py`, `phone.py`: hava durumu (Open-Meteo), maç takibi (ESPN) ve KDE Connect (D-Bus)
+- `weather.py`, `football.py`, `wallpaper.py`, `phone.py`: hava durumu (Open-Meteo), maç takibi (ESPN), duvar kağıdı yolu (cam yansıması) ve KDE Connect (D-Bus)
 - `caldav.py`, `calendar_ics.py`: bağımlılıksız CalDAV istemcisi ve iCalendar okuyucu
 - `contents/ui/`: QML arayüz (`main.qml` ada ve panel, `IslandTabs.qml` sekme çubuğu, `View.qml`/`Bars.qml` ortak parçalar, `Page*.qml` sekmeler)
 - `contents/icons/`: ikonlar Isle projesinden (GPL-3.0, bkz. `contents/icons/LICENSE-isle-GPL3.txt`)

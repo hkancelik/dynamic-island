@@ -122,7 +122,7 @@ Window {
     property var priv: ({ camera: [], mic: [], screen: [] })
     // Ayarlar sayfasının gösterdiği değerler (arka uç config.json'dan yayınlar)
     property var settings: ({ suppress_plasma_popups: true, hide_in_fullscreen: true, clipboard_history: true,
-                              lyrics: true, meeting_alerts: true, privacy_dots: true, weather_enabled: true, football_enabled: true, critter: false, phone: true,
+                              lyrics: true, meeting_alerts: true, privacy_dots: true, weather_enabled: true, football_enabled: true, phone: true,
                               spectrum: true, otp_capture: true, sounds: false, screenshot_preview: true, split_island: true,
                               claudeHooks: false,
                               accounts: [], calendars: 0, shortcuts: {}, language: "auto",
@@ -274,14 +274,6 @@ Window {
     readonly property bool lyricsWant: panelOpen && tab === 0 && lyricsOn && hasMedia && settings.lyrics
     onLyricsWantChanged: send("lyrics_want", lyricsWant)
     readonly property bool focusOn: pomo.phase !== "idle"
-    // Adanın küçük sakini: müzikte dans eder, odakta çalışır, geceleri/Rahatsız Etme'de uyur
-    readonly property bool critterOn: settings.critter !== false
-    readonly property int clockHour: parseInt((clock || "12").split(":")[0]) || 0
-    readonly property bool batteryLow: battery.present === true && battery.level <= 15 && !battery.charging
-    readonly property string critterMood: playing ? "music" : focusOn ? "focus"
-                                        : (ui.dnd || clockHour < 6) ? "sleep" : batteryLow ? "sad" : "idle"
-    readonly property bool critterShown: critterOn && rightText === "" && privDots.length === 0
-    property string critterPending: ""   // ada kapalı değilken olan olay, idle'a dönünce oynatılır
     readonly property real focusLeft: pomo.running ? Math.max(0, pomo.end - focusNow) : pomo.left
     readonly property real focusFrac: {
         var len = (pomo.phase === "break" ? pomo.brk : pomo.work) * 60000
@@ -332,7 +324,7 @@ Window {
     property string shelfHover: ""      // dosya rafında fare üstündeki öğenin yolu
     onPaletteOpenChanged: { if (paletteOpen) panelOpen = false; sound(paletteOpen ? "palette" : "close") }
     property int toolsSub: 0            // Araçlar sekmesindeki bölüm: 0 Pano, 1 Anımsatıcı, 2 Raf, 3 Notlar
-    property int settingsSub: 0         // Ayarlar bölümü: 0 Genel, 1 Özellikler, 2 Sekmeler, 3 Görünüm, 4 Maç, 5 Karakter
+    property int settingsSub: 0         // Ayarlar bölümü: 0 Genel, 1 Özellikler, 2 Sekmeler, 3 Görünüm, 4 Maç
     property int tab: 0                 // 0 Müzik, 1 Bildirim, 2 Odak, 3 Takvim, 4 Kontrol, 5 Uygulama, 6 Sistem, 7 Araçlar, 8 Hava, 9 Maç, 10 Ayarlar
     property bool hovered: false
     property string flashKind: ""       // volume | charge | track | notif | event
@@ -369,7 +361,7 @@ Window {
     readonly property bool rightBars: hasMedia && rec.state === "idle" && satKind !== "media"
     readonly property int privW: privDots.length ? privDots.length * 11 - 4 : 0
     readonly property int slotW: {
-        var parts = [critterShown ? 32 : rightBars ? 18 : 0, rightText !== "" ? 44 : 0, privW].filter(function (w) { return w > 0 })
+        var parts = [rightBars ? 18 : 0, rightText !== "" ? 44 : 0, privW].filter(function (w) { return w > 0 })
         var w = 0
         for (var i = 0; i < parts.length; i++) w += parts[i] + (i ? 6 : 0)
         return Math.max(24, w)
@@ -717,18 +709,7 @@ Window {
         x.send()
     }
     Timer { id: quickFocus; interval: 40; onTriggered: quickView.focusMe() }
-    onModeChanged: { glassPoke(); if (mode === "idle" && critterPending !== "") critterFire.restart() }
-    Timer {
-        id: critterFire
-        interval: 500
-        onTriggered: {
-            var e = root.critterPending
-            root.critterPending = ""
-            if (e === "cheer") idleCritter.cheer()
-            else if (e === "sad") idleCritter.emote("sad", 2600)
-            else if (e === "surprise") idleCritter.startle()
-        }
-    }
+    onModeChanged: glassPoke()
     Timer { id: paletteRefocus; interval: 80; onTriggered: paletteView.refocus() }
 
     function flash(kind, ms) {
@@ -941,7 +922,7 @@ Window {
             tab = Math.max(0, Math.min(10, s.tabReq.tab))
             if (s.tabReq.lyrics !== undefined) lyricsOn = s.tabReq.lyrics
             if (s.tabReq.sub !== undefined) {
-                if (tab === 10) settingsSub = Math.max(0, Math.min(5, s.tabReq.sub))
+                if (tab === 10) settingsSub = Math.max(0, Math.min(4, s.tabReq.sub))
                 else if (tab === 9) footballSection = Math.max(0, Math.min(3, s.tabReq.sub))
                 else toolsSub = Math.max(0, Math.min(3, s.tabReq.sub))
             }
@@ -976,7 +957,6 @@ Window {
                            title: ad.title || "", body: ad.icon === "timer" && ad.state === "done"
                                ? root.t("Süre doldu · ") + ad.took : (ad.subtitle || ""), ts: Date.now() }
                 if (!panelOpen) flash("notif", ad.state === "failed" || ad.icon === "timer" ? 9000 : 6000)
-                critterPending = ad.state === "failed" ? "sad" : (ad.state === "done" || ad.icon === "check") ? "cheer" : ""
                 // zamanlayıcı alarmını arka uç kendisi çalar (ayardan bağımsız)
                 if (ad.icon !== "timer" && !ui.dnd)
                     sound(ad.state === "failed" ? "fail" : ad.state === "info" ? "notify" : "done")
@@ -1516,20 +1496,8 @@ Window {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 6
                 layoutDirection: Qt.RightToLeft
-                Critter {
-                    id: idleCritter
-                    visible: root.critterShown
-                    anchors.verticalCenter: parent.verticalCenter
-                    size: 32
-                    mood: root.critterMood
-                    bass: root.bass
-                    active: idleView.on && root.critterShown
-                    pointerOn: idleHover.hovered
-                    pointerX: idleHover.hovered ? mapFromItem(idleView, idleHover.point.position.x, idleHover.point.position.y).x : 0
-                    pointerY: idleHover.hovered ? mapFromItem(idleView, idleHover.point.position.x, idleHover.point.position.y).y : 0
-                }
                 Bars {
-                    visible: root.rightBars && !root.critterShown
+                    visible: root.rightBars
                     playing: root.playing
                     levels: root.spectrum
                     live: idleView.on
@@ -1561,7 +1529,7 @@ Window {
                     }
                 }
                 Ico {         // Rahatsız Etme (başka bir şey yokken)
-                    visible: !root.rightBars && !root.critterShown && root.rightText === "" && root.privDots.length === 0 && root.ui.dnd
+                    visible: !root.rightBars && root.rightText === "" && root.privDots.length === 0 && root.ui.dnd
                     anchors.verticalCenter: parent.verticalCenter
                     source: root.ic("isle-moon")
                     size: 13

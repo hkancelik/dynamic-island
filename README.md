@@ -79,11 +79,17 @@ Built-in icons: `build` `download` `upload` `timer` `test` `deploy` `sync` `term
 `127.0.0.1` only and refuses browser requests.
 
 ## Match day
-Follow a football team from the **Match** tab (Liverpool by default, change it under *Team*): live score and minute,
+Follow a football team from the **Match** tab (Liverpool by default; pick any team in *Settings → Match*): live score and minute,
 the starting eleven drawn on a pitch with the formation and substitutes, next fixtures and recent results across the
 league and the European cups. When the team sheet is published the island announces it, during the game a Live
 Activity shows the score and minute on the closed island, and goals pop up as short notifications. Data comes from
 ESPN's public endpoints (no key); nothing is stored.
+
+<p align="center">
+  <img src="docs/screenshots/football.png" alt="The Match tab: next fixture" width="480"><br>
+  <img src="docs/screenshots/football-fixtures.png" alt="Fixtures and recent results with Home/Away badges" width="480"><br>
+  <img src="docs/screenshots/football-table.png" alt="League table with the team highlighted" width="480">
+</p>
 
 ## Command palette
 
@@ -159,7 +165,10 @@ Four materials in **Settings → Appearance**:
   The other tabs stay clean.
 - **Liquid Glass**: the island becomes one slab of glass. Controls are real lenses (a refraction shader based on
   Snell's law bends what is behind them), with frost, specular rim light and a Frosted / Balanced / Clear preset.
-  Research and design rules: [docs/liquid-glass.md](docs/liquid-glass.md).
+  Research and design rules: [docs/liquid-glass.md](docs/liquid-glass.md). The glass reacts to you: rim light
+  turns toward the cursor, a click sends a water ripple that bends what is behind it, your wallpaper is
+  refracted inside the slab, and the material condenses (frosted to clear) as the panel opens. It only redraws
+  while something moves, so an open panel idles at a few percent CPU. The command palette is glass too.
 
 <p align="center"><img src="docs/screenshots/liquid-glass.png" alt="Music in the Liquid Glass material" width="640"></p>
 - **Classic black**: a plain notch.

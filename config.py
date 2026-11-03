@@ -84,8 +84,6 @@ DEFAULTS = {
     "weather": {"city": ""},
     # Maç takibi (ESPN, anahtarsız): takım, kadro açıklanınca bildirim, maç sırasında Canlı Etkinlik
     "football_enabled": True,
-    # Adadaki küçük karakter (müzikte dans eder, odakta çalışır, gece uyur)
-    "critter": False,
     "football": {"team": {"id": "364", "name": "Liverpool", "league": "eng.1"}},
     # Telefon (KDE Connect): pil, gelen arama, telefonu çaldır
     "phone": True,
@@ -129,7 +127,7 @@ def load():
 
 # Adanın Ayarlar sayfasından değiştirilebilen açık/kapalı ayarlar
 SWITCHES = ("suppress_plasma_popups", "hide_in_fullscreen", "clipboard_history",
-            "lyrics", "meeting_alerts", "privacy_dots", "weather_enabled", "football_enabled", "phone", "spectrum", "critter",
+            "lyrics", "meeting_alerts", "privacy_dots", "weather_enabled", "football_enabled", "phone", "spectrum",
             "otp_capture", "sounds", "screenshot_preview", "split_island")
 
 
