@@ -11,6 +11,7 @@ Item {
     id: pal
 
     property var sh
+    readonly property bool glassy: sh && sh.glassLayer ? true : false
     property bool open: false
     property string query: ""
     property int sel: 0
@@ -94,7 +95,8 @@ Item {
         { t: sh.t("Pano"), k: "clipboard pano", icon: sh.ic("isle-clipboard"), tab: 7, sub: 0 },
         { t: sh.t("Notlar"), k: "notes not", icon: sh.ic("isle-text"), tab: 7, sub: 3 },
         { t: sh.t("Hava durumu"), k: "weather hava durumu yagmur sicaklik forecast", icon: sh.ic("isle-weather"), tab: 8 },
-        { t: sh.t("Ayarlar"), k: "settings ayarlar tercihler", icon: sh.ic("isle-settings"), tab: 9, suggest: true }
+        { t: sh.t("Maç"), k: "mac skor football soccer kadro fikstur futbol match lineup", icon: sh.ic("isle-football"), tab: 9 },
+        { t: sh.t("Ayarlar"), k: "settings ayarlar tercihler", icon: sh.ic("isle-settings"), tab: 10, suggest: true }
     ]
 
     readonly property var results: {
@@ -221,6 +223,19 @@ Item {
         id: bar
         width: parent.width
         height: 58
+        GlassSurface {   // arama kutusu: ince cam hap, imleç yaklaşınca kenarı parlar
+            visible: pal.glassy
+            x: 10; y: 7; width: parent.width - 20; height: parent.height - 12
+            glassLayer: pal.glassy ? pal.sh.glassLayer : null
+            tick: pal.glassy ? pal.sh.glassTick : 0
+            thin: true
+            radius: height / 2
+            frostAmount: pal.glassy ? pal.sh.glassFrost : 0
+            tintAmount: 0.06
+            bezelPx: 10
+            glow: input.activeFocus ? 0.18 : 0
+            Behavior on glow { NumberAnimation { duration: 200 } }
+        }
         Ico {
             id: glass
             x: 22
@@ -309,8 +324,23 @@ Item {
                 width: parent.width
                 height: 46
                 radius: 12
-                color: arming ? Qt.rgba(1, 0.27, 0.23, 0.22) : on ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
+                color: arming ? Qt.rgba(1, 0.27, 0.23, 0.22) : on && !pal.glassy ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
                 Behavior on color { ColorAnimation { duration: 90 } }
+                GlassSurface {   // seçili satır: cam levha, seçim satırlar arasında kayar gibi belirir
+                    anchors.fill: parent
+                    z: -1
+                    opacity: row.on ? 1 : 0
+                    visible: pal.glassy && opacity > 0
+                    Behavior on opacity { NumberAnimation { duration: 140 } }
+                    glassLayer: pal.glassy ? pal.sh.glassLayer : null
+                    tick: pal.glassy ? pal.sh.glassTick : 0
+                    thin: true
+                    radius: row.radius
+                    frostAmount: pal.glassy ? pal.sh.glassFrost : 0
+                    tintAmount: 0.08
+                    bezelPx: 9
+                    glow: 0.22
+                }
 
                 Rectangle {
                     id: badge

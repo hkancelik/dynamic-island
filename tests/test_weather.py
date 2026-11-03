@@ -93,7 +93,7 @@ class IconAndTabTest(unittest.TestCase):
         old = {"tabs": ["tools", "music", "notifications", "focus", "calendar", "controls", "apps", "system"], "hidden": ["apps"]}
         got = config.clean_layout(old)
         self.assertEqual(got["tabs"][:2], ["tools", "music"])
-        self.assertEqual(got["tabs"][-1], "weather")                            # eski düzenin sonuna eklenir
+        self.assertEqual(got["tabs"][-2:], ["weather", "football"])             # yeni sekmeler eski düzenin sonuna eklenir
         self.assertEqual(got["hidden"], ["apps"])
 
 

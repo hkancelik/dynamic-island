@@ -69,3 +69,10 @@ one shader covers every size and corner radius (`shaders/glass.frag`).
 4. Contrast first: text over glass keeps ≥ 4.5:1 (frost rises automatically over busy backdrops).
 5. Motion explains change: materialization instead of fades, no decorative loops.
 6. Accessibility fallbacks are part of the material, not an afterthought.
+
+## Etkileşimli cam
+
+- **Işığı izleyen cam:** imleç adanın üstündeyken kenar parıltısı ona döner; yakındaki kenar ve iç yüzey daha çok yanar (`pointer` uniform'u).
+- **Dokunma dalgası:** tıklayınca camın üstünde su halkası yayılır, arkadaki içeriği büker (`rippleA`/`rippleB`, iki halka dönüşümlü).
+- **Duvar kağıdı yansıması:** arka uç Plasma ayarından duvar kağıdını bulur (`wallpaper.py`); ada ekranın üst ortasında olduğundan, arkasındaki bölge camın içinde kırılır.
+- **Komut paleti (Alt+Boşluk):** gövde, arama kutusu ve seçili satır cam.

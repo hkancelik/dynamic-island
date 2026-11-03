@@ -67,6 +67,7 @@ Item {
                 background: Rectangle {
                     radius: 14
                     color: Qt.rgba(1, 1, 1, 0.11)
+                    GlassBack {}
                     border.width: search.activeFocus ? 1 : 0
                     border.color: Qt.rgba(1, 1, 1, 0.16)
                     Ico {
@@ -84,6 +85,7 @@ Item {
                 Layout.preferredHeight: 26
                 radius: 13
                 color: clrMa.pressed ? "#48484a" : clrMa.containsMouse ? "#3a3a3c" : Qt.rgba(1, 1, 1, 0.17)
+                GlassBack { hot: clrMa.containsMouse; down: clrMa.pressed }
                 Text {
                     id: clrText
                     renderType: Text.CurveRendering

@@ -74,7 +74,7 @@ Item {
 
     // Bölümler: Genel | Sekmeler | Görünüm
     readonly property int section: sh.settingsSub
-    readonly property var sections: [sh.t("Genel"), sh.t("Özellikler"), sh.t("Sekmeler"), sh.t("Görünüm")]
+    readonly property var sections: [sh.t("Genel"), sh.t("Özellikler"), sh.t("Sekmeler"), sh.t("Görünüm"), sh.t("Maç"), sh.t("Karakter")]
     Rectangle {
         id: seg
         width: parent.width
@@ -126,6 +126,8 @@ Item {
 
         TabsEditor { anchors.fill: parent; sh: page.sh; visible: page.section === 2 }
         AppearanceEditor { anchors.fill: parent; sh: page.sh; visible: page.section === 3 }
+        FootballSettings { anchors.fill: parent; sh: page.sh; visible: page.section === 4 }
+        CritterSettings { anchors.fill: parent; sh: page.sh; visible: page.section === 5 }
 
         GridLayout {
             visible: page.section === 1
@@ -223,6 +225,18 @@ Item {
                 hint: sh.t("Open-Meteo; konum ayar dosyasından")
                 on: page.st.weather_enabled
                 onToggled: page.set("weather_enabled", !on)
+            }
+            Row2 {
+                title: sh.t("Karakter")
+                hint: sh.t("Adada yaşayan küçük arkadaş")
+                on: page.st.critter
+                onToggled: page.set("critter", !on)
+            }
+            Row2 {
+                title: sh.t("Maç takibi")
+                hint: sh.t("ESPN; skor, kadro, fikstür")
+                on: page.st.football_enabled
+                onToggled: page.set("football_enabled", !on)
             }
             Row2 {
                 title: sh.t("Telefon (KDE Connect)")

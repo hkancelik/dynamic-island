@@ -190,6 +190,7 @@ Item {
                 background: Rectangle {
                     radius: 10
                     color: Qt.rgba(1, 1, 1, 0.11)
+                    GlassBack {}
                     border.width: addField.activeFocus ? 1 : 0
                     border.color: Qt.rgba(1, 1, 1, 0.16)
                     Ico {

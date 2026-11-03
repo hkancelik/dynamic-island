@@ -27,6 +27,9 @@ layout(std140, binding = 0) uniform buf {
     float chroma;       // renk ayrışması (0 = yok)
     float bodyAlpha;    // camın gövde saydamlığı (1 = opak)
     float adapt;        // 0..1 arka plana uyum (açık zeminde koyulaş, koyuda açıl)
+    vec4 pointer;       // xy: imleç (öğe içi px), z: şiddet 0..1, w: etki yarıçapı (px)
+    vec4 rippleA;       // xy: dalga merkezi (px), z: ilerleme 0..1 (>=1: yok), w: genlik (px)
+    vec4 rippleB;
 };
 layout(binding = 1) uniform sampler2D backdrop;       // keskin arka plan
 layout(binding = 2) uniform sampler2D backdropBlur;   // bulanık arka plan
@@ -36,6 +39,20 @@ float sdRoundBox(vec2 p, vec2 halfSize, vec4 r) {
     rad = min(rad, min(halfSize.x, halfSize.y));
     vec2 q = abs(p) - halfSize + rad;
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - rad;
+}
+
+// su halkası: merkezden yayılan dalga. xy: kırılma ofseti (px), z: parlaklık
+vec3 rippleAt(vec4 r, vec2 px) {
+    if (r.z >= 1.0 || r.w <= 0.0) return vec3(0.0);
+    vec2 v = px - r.xy;
+    float l = length(v);
+    vec2 dir = (l > 0.001) ? v / l : vec2(0.0);
+    float R = r.z * 170.0;
+    float w = 12.0 + r.z * 18.0;
+    float x = (l - R) / w;
+    float fade = (1.0 - r.z) * (1.0 - r.z);
+    float prof = sin(x * 3.2) * exp(-x * x);
+    return vec3(dir * prof * r.w * fade, prof * fade);
 }
 
 float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
@@ -71,6 +88,10 @@ void main() {
     vec3 R = refract(vec3(0.0, 0.0, -1.0), N, 1.0 / ior);
     float travel = h + 0.55 * thickness;
     vec2 disp = R.xy * (travel / max(-R.z, 0.2)) * lens;   // px cinsinden ofset
+    vec3 rpA = rippleAt(rippleA, px);
+    vec3 rpB = rippleAt(rippleB, px);
+    disp += rpA.xy + rpB.xy;
+    float ripLight = rpA.z + rpB.z;
 
     // arka planı kırılmış konumdan örnekle (üç kanal biraz farklı: renk ayrışması)
     vec2 uvR = clamp((px + disp * (1.0 - chroma)) / size, 0.002, 0.998);
@@ -93,14 +114,21 @@ void main() {
     col = mix(col, tint.rgb * (0.55 + 0.9 * L), tint.a);
 
     // özel parlama: kenarda ince şerit, ışığa dönük yan güçlü, karşı yan hafif
-    vec2 ld = normalize(lightDir);
+    // imleç ışık kaynağı gibi davranır: kenar parıltısı ona döner, yakındaki kenar daha çok yanar
+    float pdist = length(px - pointer.xy);
+    float pl = pointer.z * exp(-(pdist * pdist) / (pointer.w * pointer.w));
+    vec2 toPtr = pointer.xy - halfSize;
+    vec2 ld = normalize(mix(normalize(lightDir), (length(toPtr) > 1.0) ? normalize(toPtr) : normalize(lightDir), pointer.z * 0.85));
     float lit = pow(max(dot(n, ld), 0.0), 1.4);
     float back = pow(max(dot(n, -ld), 0.0), 2.6) * 0.5;
     float band = 1.0 - smoothstep(0.0, 2.4, d);
-    float spec = (lit + back) * band * rim;
+    float spec = (lit + back) * band * rim * (1.0 + 2.6 * pl);
     // kalın kenarda geniş, yumuşak bir Fresnel parıltısı
-    float fres = pow(1.0 - t, 3.0) * (0.04 + 0.10 * lit) * rim;
+    float fres = pow(1.0 - t, 3.0) * (0.04 + 0.10 * lit + 0.22 * pl) * rim;
     col += vec3(spec + fres) * mix(vec3(1.0), tint.rgb + 0.35, 0.25);
+
+    // imlecin altında yumuşak ışık lekesi ve dalga parıltısı
+    col += vec3(pl * 0.075 + ripLight * 0.10) * mix(vec3(1.0), tint.rgb + 0.35, 0.25);
 
     // basınca içeriden aydınlanma
     float gr = max(min(size.x, size.y) * 0.9, 24.0);

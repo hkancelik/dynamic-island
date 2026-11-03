@@ -34,7 +34,7 @@ except ImportError:   # tek başına kopyalanmışsa
         return s
 
 URL = os.environ.get("ISLAND_URL", "http://127.0.0.1:47615")
-TABS = ["music", "notifications", "focus", "calendar", "controls", "apps", "system", "tools", "weather", "settings"]
+TABS = ["music", "notifications", "focus", "calendar", "controls", "apps", "system", "tools", "weather", "football", "settings"]
 
 
 class NotRunning(Exception):
@@ -174,7 +174,7 @@ def do_tab(a):
         n = int(a.tab)
     except ValueError:
         if a.tab not in TABS:
-            sys.exit("island tab: %s ya da 0-9" % ", ".join(TABS))
+            sys.exit("island tab: %s ya da 0-10" % ", ".join(TABS))
         n = TABS.index(a.tab)
     arg = {"tab": n}
     if a.sub is not None:
@@ -314,7 +314,7 @@ def main(argv=None):
     p.set_defaults(fn=lambda a: cmd("quicklook", os.path.abspath(os.path.expanduser(a.file)) if a.file else ""))
 
     p = sub.add_parser("tab", help="paneli bir sekmede aç")
-    p.add_argument("tab", help="0-9 ya da " + ", ".join(TABS))
+    p.add_argument("tab", help="0-10 ya da " + ", ".join(TABS))
     p.add_argument("sub", nargs="?", type=int)
     p.set_defaults(fn=do_tab)
 

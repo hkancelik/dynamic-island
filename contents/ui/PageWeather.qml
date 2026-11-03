@@ -187,59 +187,105 @@ Item {
             }
         }
 
-        // ---- 5 günlük tahmin
+        // ---- 5 günlük tahmin: her gün için sıcaklık aralığı çubuğu
         GlassCard {
+            id: dcard
             sh: page.sh
             y: 94
             width: parent.width
             height: parent.height - 94
-            radius: 16
+            radius: 18
             fill: 0.07
-            Row {
-                anchors.fill: parent
-                Repeater {
-                    model: page.days
-                    Item {
-                        required property var modelData
-                        required property int index
-                        width: parent.width / 5
-                        height: parent.height
-                        Column {
-                            anchors.centerIn: parent
-                            spacing: 2
-                            Text {
-                                anchors.horizontalCenter: parent.horizontalCenter
+
+            readonly property real wmin: page.days.length ? Math.min.apply(null, page.days.map(function (d) { return d.lo })) : 0
+            readonly property real wmax: page.days.length ? Math.max.apply(null, page.days.map(function (d) { return d.hi })) : 1
+            readonly property real span: Math.max(1, wmax - wmin)
+            readonly property real colW: width / 5
+
+            Repeater {
+                model: page.days
+                Item {
+                    id: dc
+                    required property var modelData
+                    required property int index
+                    x: index * dcard.colW
+                    width: dcard.colW
+                    height: dcard.height
+
+                    Rectangle {   // bugün: hafif vurgulu
+                        visible: dc.index === 0
+                        anchors.fill: parent
+                        anchors.margins: 4
+                        radius: 14
+                        color: Qt.rgba(1, 1, 1, 0.08)
+                    }
+                    Rectangle {   // gün ayracı
+                        visible: dc.index > 0
+                        x: 0; y: 14; width: 1; height: parent.height - 28
+                        color: Qt.rgba(1, 1, 1, 0.07)
+                    }
+
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: 3
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            renderType: Text.CurveRendering
+                            font.family: "Inter"
+                            text: page.dayName(dc.modelData, dc.index)
+                            color: Qt.rgba(1, 1, 1, dc.index === 0 ? 1 : 0.65)
+                            font.pixelSize: 11
+                            font.weight: dc.index === 0 ? Font.DemiBold : Font.Medium
+                        }
+                        Item {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: 26; height: 26
+                            WeatherIcon { anchors.fill: parent; name: dc.modelData.icon }
+                            Text {   // yağış ihtimali: simgenin sağ altında
+                                visible: dc.modelData.pop >= 30
+                                x: 24; y: 14
                                 renderType: Text.CurveRendering
                                 font.family: "Inter"
-                                text: page.dayName(modelData, index)
-                                color: Qt.rgba(1, 1, 1, index === 0 ? 0.9 : 0.6)
-                                font.pixelSize: 11
-                                font.weight: index === 0 ? Font.DemiBold : Font.Normal
+                                text: sh.pct(dc.modelData.pop)
+                                color: page.rainColor
+                                font.pixelSize: 9
+                                font.weight: Font.DemiBold
+                                font.features: { "tnum": 1 }
                             }
-                            WeatherIcon {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                width: 24; height: 24
-                                name: modelData.icon
+                        }
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 6
+                            Text {
+                                renderType: Text.CurveRendering
+                                font.family: "Inter"
+                                text: dc.modelData.hi + "°"
+                                color: "white"
+                                font.pixelSize: 14
+                                font.weight: Font.DemiBold
+                                font.features: { "tnum": 1 }
                             }
-                            Row {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                spacing: 6
-                                Text {
-                                    renderType: Text.CurveRendering
-                                    font.family: "Inter"
-                                    text: modelData.hi + "°"
-                                    color: "white"
-                                    font.pixelSize: 13
-                                    font.weight: Font.DemiBold
-                                    font.features: { "tnum": 1 }
-                                }
-                                Text {
-                                    renderType: Text.CurveRendering
-                                    font.family: "Inter"
-                                    text: modelData.lo + "°"
-                                    color: Qt.rgba(1, 1, 1, 0.45)
-                                    font.pixelSize: 13
-                                    font.features: { "tnum": 1 }
+                            Text {
+                                renderType: Text.CurveRendering
+                                font.family: "Inter"
+                                text: dc.modelData.lo + "°"
+                                color: Qt.rgba(1, 1, 1, 0.45)
+                                font.pixelSize: 14
+                                font.features: { "tnum": 1 }
+                            }
+                        }
+                        Rectangle {   // hafta içindeki yeri: soğuktan sıcağa
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: dcard.colW - 36; height: 4; radius: 2
+                            color: Qt.rgba(1, 1, 1, 0.12)
+                            Rectangle {
+                                x: (dc.modelData.lo - dcard.wmin) / dcard.span * (parent.width - width)
+                                width: Math.max(10, (dc.modelData.hi - dc.modelData.lo) / dcard.span * parent.width)
+                                height: parent.height; radius: 2
+                                gradient: Gradient {
+                                    orientation: Gradient.Horizontal
+                                    GradientStop { position: 0; color: "#64d2ff" }
+                                    GradientStop { position: 1; color: "#ffb347" }
                                 }
                             }
                         }

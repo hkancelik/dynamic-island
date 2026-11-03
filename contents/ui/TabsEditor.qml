@@ -8,9 +8,9 @@ Item {
     property var sh
 
     readonly property var icons: [sh.ic("isle-music"), sh.ic("isle-bell"), sh.ic("isle-timer"), sh.ic("isle-calendar"),
-                                  sh.ic("isle-sun-symbolic"), "view-app-grid-symbolic", sh.ic("isle-gauge"), sh.ic("isle-shelf"), sh.ic("isle-weather")]
+                                  sh.ic("isle-sun-symbolic"), "view-app-grid-symbolic", sh.ic("isle-gauge"), sh.ic("isle-shelf"), sh.ic("isle-weather"), sh.ic("isle-football")]
     readonly property var labels: [sh.t("Müzik"), sh.t("Bildirim"), sh.t("Odak"), sh.t("Takvim"),
-                                   sh.t("Kontrol"), sh.t("Uygulama"), sh.t("Sistem"), sh.t("Araçlar"), sh.t("Hava")]
+                                   sh.t("Kontrol"), sh.t("Uygulama"), sh.t("Sistem"), sh.t("Araçlar"), sh.t("Hava"), sh.t("Maç")]
 
     property var draft: null
     property int dragId: -1

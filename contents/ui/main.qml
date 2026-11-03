@@ -108,6 +108,9 @@ Window {
     property var docs: []               // serbest metin notları (Araçlar → Notlar)
     property var docNew: ({ seq: 0, id: 0 })
     property var weather: ({ ok: false })
+    property var football: ({ ok: false })
+    property string wallpaper: ""
+    property var footballSearch: ({ q: "", items: [], seq: 0 })
     property var phone: ({ present: false, devices: [] })
     property var rec: ({ state: "idle", since: 0, error: "", last: "" })
     // Odak sayacı (arka uçta tutulur): phase idle|work|break, running, end (ms), left (ms)
@@ -119,7 +122,7 @@ Window {
     property var priv: ({ camera: [], mic: [], screen: [] })
     // Ayarlar sayfasının gösterdiği değerler (arka uç config.json'dan yayınlar)
     property var settings: ({ suppress_plasma_popups: true, hide_in_fullscreen: true, clipboard_history: true,
-                              lyrics: true, meeting_alerts: true, privacy_dots: true, weather_enabled: true, phone: true,
+                              lyrics: true, meeting_alerts: true, privacy_dots: true, weather_enabled: true, football_enabled: true, critter: false, phone: true,
                               spectrum: true, otp_capture: true, sounds: false, screenshot_preview: true, split_island: true,
                               claudeHooks: false,
                               accounts: [], calendars: 0, shortcuts: {}, language: "auto",
@@ -132,16 +135,28 @@ Window {
     // Sıvı cam: ada gövdesi tek cam levha, kontroller mercekli cam (docs/liquid-glass.md)
     readonly property bool glassy: material === "glass"
     // Cam levha yalnızca açık panelde; kapalı ada ve küçük görünümler donanım çentiğiyle uyumlu siyah kalır
-    readonly property bool glassBody: glassy && mode === "panel"
+    readonly property bool glassBody: glassy && (mode === "panel" || mode === "palette")
     readonly property string glassStyle: layout.glass === "frosted" || layout.glass === "clear" ? layout.glass : "balanced"
     readonly property real glassFrost: glassStyle === "frosted" ? 0.75 : glassStyle === "clear" ? 0.12 : 0.38
     readonly property Item glassLayer: glassy ? glassBackdrop : null
     // Cam yüzeylerin arka plandaki konumunu yeniden hesaplatan sayaç (yalnızca cam panelde, kare başına)
     property real glassTick: 0
+    // Cam yalnızca bir şey hareket ederken yenilenir (açılma/kapanma, sekme değişimi, imleç, kaydırma, dalga);
+    // durgunken doku ve konumlar dondurulur, işlemci boşta kalır.
+    property bool glassActive: false
+    function glassPoke() { glassActive = true; glassIdle.restart() }
+    Timer { id: glassIdle; interval: 1600; onTriggered: root.glassActive = false }
+    readonly property bool glassMoving: glassActive || glassBackdrop.rpT0 < 1 || glassBackdrop.rpT1 < 1
     FrameAnimation {
-        running: root.glassy && root.mode === "panel"
+        running: root.glassy && (root.mode === "panel" || root.mode === "palette") && root.glassMoving
         onTriggered: root.glassTick += 1
     }
+    // Maddeleşme: cam açılırken buzlu ve düz belirir, sonra berraklaşıp kırılma kazanır; kapanırken tersi
+    property real glassMat: glassBody ? 1 : 0
+    Behavior on glassMat { NumberAnimation { duration: root.glassBody ? 640 : 240; easing.type: Easing.InOutCubic } }
+    onGlassMatChanged: glassPoke()
+    onAccentChanged: glassPoke()
+    onWallpaperChanged: glassPoke()
     // Müzik ışıklarının rengi: canlı modda vurgu rengi, sade modda beyaz
     readonly property color glowColor: vivid ? accent : "white"
     // Bas düzeyi (0..1): alt ışık ve kenar ışığı müziğe göre nefes alır
@@ -152,7 +167,7 @@ Window {
     }
 
     // Sekmeler: sayfa numarası sabit (0 Müzik … 7 Araçlar, 8 Ayarlar), görünen sıra ve gizlilik ayardan.
-    readonly property var tabKeys: ["music", "notifications", "focus", "calendar", "controls", "apps", "system", "tools", "weather"]
+    readonly property var tabKeys: ["music", "notifications", "focus", "calendar", "controls", "apps", "system", "tools", "weather", "football"]
     // Ayarlar → Sekmeler → Varsayılan: Hava, Sistem'in yanında
     readonly property var defaultTabIds: [0, 1, 2, 3, 4, 5, 6, 8, 7]
     // Sürükleyip bırakınca arka uçtan yanıt gelene kadar yeni sıra hemen görünsün
@@ -206,7 +221,7 @@ Window {
     // Panel açılırken gösterilecek sekme: ayara göre ilk sekme ya da son açılan (gizlendiyse ilk)
     function openingTab() {
         if (layout.open === "first") return tabOrder[0]
-        return tab === 9 || tabOrder.indexOf(tab) >= 0 ? tab : tabOrder[0]
+        return tab === 10 || tabOrder.indexOf(tab) >= 0 ? tab : tabOrder[0]
     }
     // Claude Code: bekleyen izin istekleri (en eskisi önce) ve son "bitti" haberi
     property var agents: ({ asks: [], done: { seq: 0 } })
@@ -259,6 +274,14 @@ Window {
     readonly property bool lyricsWant: panelOpen && tab === 0 && lyricsOn && hasMedia && settings.lyrics
     onLyricsWantChanged: send("lyrics_want", lyricsWant)
     readonly property bool focusOn: pomo.phase !== "idle"
+    // Adanın küçük sakini: müzikte dans eder, odakta çalışır, geceleri/Rahatsız Etme'de uyur
+    readonly property bool critterOn: settings.critter !== false
+    readonly property int clockHour: parseInt((clock || "12").split(":")[0]) || 0
+    readonly property bool batteryLow: battery.present === true && battery.level <= 15 && !battery.charging
+    readonly property string critterMood: playing ? "music" : focusOn ? "focus"
+                                        : (ui.dnd || clockHour < 6) ? "sleep" : batteryLow ? "sad" : "idle"
+    readonly property bool critterShown: critterOn && rightText === "" && privDots.length === 0
+    property string critterPending: ""   // ada kapalı değilken olan olay, idle'a dönünce oynatılır
     readonly property real focusLeft: pomo.running ? Math.max(0, pomo.end - focusNow) : pomo.left
     readonly property real focusFrac: {
         var len = (pomo.phase === "break" ? pomo.brk : pomo.work) * 60000
@@ -309,8 +332,8 @@ Window {
     property string shelfHover: ""      // dosya rafında fare üstündeki öğenin yolu
     onPaletteOpenChanged: { if (paletteOpen) panelOpen = false; sound(paletteOpen ? "palette" : "close") }
     property int toolsSub: 0            // Araçlar sekmesindeki bölüm: 0 Pano, 1 Anımsatıcı, 2 Raf, 3 Notlar
-    property int settingsSub: 0         // Ayarlar bölümü: 0 Genel, 1 Özellikler, 2 Sekmeler, 3 Görünüm
-    property int tab: 0                 // 0 Müzik, 1 Bildirim, 2 Odak, 3 Takvim, 4 Kontrol, 5 Uygulama, 6 Sistem, 7 Araçlar, 8 Hava, 9 Ayarlar
+    property int settingsSub: 0         // Ayarlar bölümü: 0 Genel, 1 Özellikler, 2 Sekmeler, 3 Görünüm, 4 Maç, 5 Karakter
+    property int tab: 0                 // 0 Müzik, 1 Bildirim, 2 Odak, 3 Takvim, 4 Kontrol, 5 Uygulama, 6 Sistem, 7 Araçlar, 8 Hava, 9 Maç, 10 Ayarlar
     property bool hovered: false
     property string flashKind: ""       // volume | charge | track | notif | event
     property string chargeKind: "charging"
@@ -346,7 +369,7 @@ Window {
     readonly property bool rightBars: hasMedia && rec.state === "idle" && satKind !== "media"
     readonly property int privW: privDots.length ? privDots.length * 11 - 4 : 0
     readonly property int slotW: {
-        var parts = [rightBars ? 18 : 0, rightText !== "" ? 44 : 0, privW].filter(function (w) { return w > 0 })
+        var parts = [critterShown ? 32 : rightBars ? 18 : 0, rightText !== "" ? 44 : 0, privW].filter(function (w) { return w > 0 })
         var w = 0
         for (var i = 0; i < parts.length; i++) w += parts[i] + (i ? 6 : 0)
         return Math.max(24, w)
@@ -446,7 +469,9 @@ Window {
     readonly property real panelScale: 1
     readonly property int panelW: lyricsWant ? 760 : 600
     // Ayarlar çok satır içerir: o sekmede panel daha yüksek
-    readonly property int panelH: tab === 9 ? 372 : 224
+    // Maç sekmesi bölümüne göre uzar: kadro sahası ve fikstür satırları sıkışmasın
+    property int footballSection: 0
+    readonly property int panelH: tab === 10 ? 372 : tab === 8 ? 244 : tab === 9 ? [224, football.lineup ? 268 : 224, 286, 286][footballSection] || 224 : 224
 
     readonly property int islandW: {
         switch (mode) {
@@ -636,7 +661,7 @@ Window {
         build: "run-build", download: "download", upload: "upload", timer: "isle-timer",
         test: "isle-tasks", deploy: "isle-send-symbolic", sync: "isle-update-symbolic",
         terminal: "isle-terminal-symbolic", music: "isle-music", mail: "mail-message",
-        check: "isle-check-symbolic", warning: "isle-warning-symbolic", info: "isle-info-symbolic"
+        football: "isle-football", check: "isle-check-symbolic", warning: "isle-warning-symbolic", info: "isle-info-symbolic"
     })
     function actIcon(name) {
         var n = actIcons[name || "info"] || name
@@ -692,6 +717,18 @@ Window {
         x.send()
     }
     Timer { id: quickFocus; interval: 40; onTriggered: quickView.focusMe() }
+    onModeChanged: { glassPoke(); if (mode === "idle" && critterPending !== "") critterFire.restart() }
+    Timer {
+        id: critterFire
+        interval: 500
+        onTriggered: {
+            var e = root.critterPending
+            root.critterPending = ""
+            if (e === "cheer") idleCritter.cheer()
+            else if (e === "sad") idleCritter.emote("sad", 2600)
+            else if (e === "surprise") idleCritter.startle()
+        }
+    }
     Timer { id: paletteRefocus; interval: 80; onTriggered: paletteView.refocus() }
 
     function flash(kind, ms) {
@@ -841,6 +878,9 @@ Window {
         if (s.docNew !== undefined) docNew = s.docNew
         if (s.rec !== undefined) rec = s.rec
         if (s.weather !== undefined) weather = s.weather
+        if (s.football !== undefined) football = s.football
+        if (s.wallpaper !== undefined) wallpaper = s.wallpaper
+        if (s.footballSearch !== undefined) footballSearch = s.footballSearch
         if (s.phone !== undefined) phone = s.phone
         if (s.focus !== undefined) { pomo = s.focus; focusNow = Date.now() }
         if (s.lyrics !== undefined) lyr = s.lyrics
@@ -898,10 +938,11 @@ Window {
             else paletteOpen = !paletteOpen
         }
         if (s.tabReq !== undefined && s.tabReq.seq !== o.tabReq.seq) {
-            tab = Math.max(0, Math.min(9, s.tabReq.tab))
+            tab = Math.max(0, Math.min(10, s.tabReq.tab))
             if (s.tabReq.lyrics !== undefined) lyricsOn = s.tabReq.lyrics
             if (s.tabReq.sub !== undefined) {
-                if (tab === 9) settingsSub = Math.max(0, Math.min(3, s.tabReq.sub))
+                if (tab === 10) settingsSub = Math.max(0, Math.min(5, s.tabReq.sub))
+                else if (tab === 9) footballSection = Math.max(0, Math.min(3, s.tabReq.sub))
                 else toolsSub = Math.max(0, Math.min(3, s.tabReq.sub))
             }
             panelOpen = true
@@ -935,6 +976,7 @@ Window {
                            title: ad.title || "", body: ad.icon === "timer" && ad.state === "done"
                                ? root.t("Süre doldu · ") + ad.took : (ad.subtitle || ""), ts: Date.now() }
                 if (!panelOpen) flash("notif", ad.state === "failed" || ad.icon === "timer" ? 9000 : 6000)
+                critterPending = ad.state === "failed" ? "sad" : (ad.state === "done" || ad.icon === "check") ? "cheer" : ""
                 // zamanlayıcı alarmını arka uç kendisi çalar (ayardan bağımsız)
                 if (ad.icon !== "timer" && !ui.dnd)
                     sound(ad.state === "failed" ? "fail" : ad.state === "info" ? "notify" : "done")
@@ -992,7 +1034,7 @@ Window {
         if (panelOpen && tab === 1) markSeen()
         if (!panelOpen) { panelAutoClose.stop(); deviceMenu = false }
     }
-    onTabChanged: { deviceMenu = false; if (panelOpen && tab === 1) markSeen(); flyKick() }
+    onTabChanged: { glassPoke(); deviceMenu = false; if (panelOpen && tab === 1) markSeen(); flyKick() }
     onUiChanged: if (ui.hidden) { panelOpen = false; hovered = false }
 
     // ------------------------------------------------------------------
@@ -1209,6 +1251,8 @@ Window {
         color: "transparent"
         clip: true
 
+        onWidthChanged: root.glassPoke()
+        onHeightChanged: root.glassPoke()
         Behavior on width { SpringAnimation { spring: 3.4; damping: 0.3; epsilon: 0.3 } }
         Behavior on height { SpringAnimation { spring: 3.4; damping: root.mode === "panel" ? 0.36 : 0.3; epsilon: 0.3 } }
 
@@ -1217,12 +1261,26 @@ Window {
             id: glassBackdrop
             anchors.fill: parent
             // kaynak yalnızca canlıyken gizlenir; cam levha görünürken canlı kalmalı, yoksa kare köşeli içerik sızar
-            live: root.glassy && glassSlab.visible
+            live: root.glassy && glassSlab.visible && (root.glassMoving || (root.playing && root.ambient))
+            mat: root.glassMat
             blurAmount: 0.6 + root.glassFrost * 0.4
+            pointerPos: islandHover.point.position
+            pointerAmount: islandHover.hovered ? 1 : 0
+            Behavior on pointerAmount { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
             Rectangle {
                 anchors.fill: parent
                 color: "#0c0c10"
                 visible: glassSlab.visible
+            }
+            Image {   // masaüstü duvar kağıdı: ada ekranın üst ortasında, arkasındaki bölge camda kırılır
+                visible: glassSlab.visible && root.wallpaper !== ""
+                source: root.wallpaper
+                asynchronous: true
+                sourceSize: Qt.size(480, 270)
+                fillMode: Image.PreserveAspectCrop
+                width: Screen.width; height: Screen.height
+                x: (island.width - Screen.width) / 2; y: 0
+                opacity: 0.55
             }
             Rectangle {
                 anchors.fill: parent
@@ -1298,7 +1356,15 @@ Window {
             }
         }
 
+        TapHandler {
+            acceptedButtons: Qt.LeftButton
+            gesturePolicy: TapHandler.ReleaseWithinBounds
+            onTapped: eventPoint => { if (root.glassy) { root.glassPoke(); glassBackdrop.ripple(eventPoint.position.x, eventPoint.position.y) } }
+        }
+
         HoverHandler {
+            id: islandHover
+            onPointChanged: root.glassPoke()
             onHoveredChanged: {
                 var hold = root.flashKind === "notif" || root.flashKind === "event" || root.flashKind === "shot"
                 if (hovered) {
@@ -1342,6 +1408,12 @@ Window {
             }
         }
 
+        // panelde kaydırma da camı canlandırır (kartlar yer değiştirir); olayı engellemez
+        WheelHandler {
+            blocking: false
+            onWheel: root.glassPoke()
+        }
+
         // Tekerlek: ses ayarı (panelde listeler kaydırılır)
         WheelHandler {
             property real acc: 0
@@ -1364,6 +1436,8 @@ Window {
             on: root.mode === "idle"
             width: root.idleW
             height: 32
+
+            HoverHandler { id: idleHover }
 
             // Sol yuva
             Item {
@@ -1442,8 +1516,20 @@ Window {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 6
                 layoutDirection: Qt.RightToLeft
+                Critter {
+                    id: idleCritter
+                    visible: root.critterShown
+                    anchors.verticalCenter: parent.verticalCenter
+                    size: 32
+                    mood: root.critterMood
+                    bass: root.bass
+                    active: idleView.on && root.critterShown
+                    pointerOn: idleHover.hovered
+                    pointerX: idleHover.hovered ? mapFromItem(idleView, idleHover.point.position.x, idleHover.point.position.y).x : 0
+                    pointerY: idleHover.hovered ? mapFromItem(idleView, idleHover.point.position.x, idleHover.point.position.y).y : 0
+                }
                 Bars {
-                    visible: root.rightBars
+                    visible: root.rightBars && !root.critterShown
                     playing: root.playing
                     levels: root.spectrum
                     live: idleView.on
@@ -1475,7 +1561,7 @@ Window {
                     }
                 }
                 Ico {         // Rahatsız Etme (başka bir şey yokken)
-                    visible: !root.rightBars && root.rightText === "" && root.privDots.length === 0 && root.ui.dnd
+                    visible: !root.rightBars && !root.critterShown && root.rightText === "" && root.privDots.length === 0 && root.ui.dnd
                     anchors.verticalCenter: parent.verticalCenter
                     source: root.ic("isle-moon")
                     size: 13
@@ -2268,10 +2354,10 @@ Window {
                         Layout.preferredHeight: 28
                         icon: root.ic("isle-settings")
                         iconSize: 15
-                        tint: root.tab === 9 ? "white" : Qt.rgba(1, 1, 1, 0.6)
-                        filled: root.tab === 9
+                        tint: root.tab === 10 ? "white" : Qt.rgba(1, 1, 1, 0.6)
+                        filled: root.tab === 10
                         fillColor: Qt.rgba(1, 1, 1, 0.12)
-                        onClicked: root.tab = root.tab === 9 ? root.tabOrder[0] : 9
+                        onClicked: root.tab = root.tab === 10 ? root.tabOrder[0] : 10
                     }
                     CtlButton {
                         Layout.preferredWidth: 28
@@ -2366,6 +2452,13 @@ Window {
                     PageFade {
                         anchors.fill: parent
                         index: 9
+                        current: root.tab
+                        order: root.tabOrder
+                        PageFootball { anchors.fill: parent; sh: root }
+                    }
+                    PageFade {
+                        anchors.fill: parent
+                        index: 10
                         current: root.tab
                         order: root.tabOrder
                         PageSettings { anchors.fill: parent; sh: root }

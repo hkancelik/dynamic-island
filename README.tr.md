@@ -78,6 +78,7 @@ KDE Plasma 6 (Wayland) için ekranın üstünde duran, Apple'ın Dynamic Island'
 - **Hava durumu** kendi sekmesinde: şimdiki durum, önümüzdeki 9 saat (yağış ihtimalleriyle), 5 günlük tahmin
   ve "yağmur 4 sa sonra" uyarısı (Open-Meteo, anahtarsız). Simgeler proje için çizildi, simge temasına bağlı değil.
   Konum: config.json'da `"weather": {"city": "İstanbul"}`; boşsa IP adresinden yaklaşık konum bulunur
+- **Maç** sekmesi: takip ettiğin takımın (varsayılan Liverpool) canlı skoru, sahada ilk 11 ve yedekler, sıradaki maçlar ve son sonuçlar. Kadro yayınlanınca bildirim, maç sırasında kapalı adada skor ve dakika; veri ESPN'den, anahtarsız.
 - **Telefon (KDE Connect):** Sistem sekmesinde telefonun pil yüzdesi, dokununca telefon çalar;
   gelen aramada kapalı adada uyarı. Telefon bildirimleri zaten Plasma bildirimi olarak adaya düşer
 - **Pano:** arama (Enter ilk sonucu kopyalar), sabitleme (Temizle sabitlenenleri silmez), kaç dk önce kopyalandığı;
@@ -120,7 +121,7 @@ Gerekenler: `qml6`, `layer-shell-qt`, Kirigami, Python 3 (PyGObject, dbus-python
 - `i18n.py`, `contents/ui/lang_en.js`: çeviriler (kaynak dil Türkçe)
 - `tests/`: `python -m unittest discover -s tests -t .`
 - `backend.py`: durum + komut sunucusu (127.0.0.1:47615), MPRIS, ses, ağ, takvim, bildirimler
-- `weather.py`, `phone.py`: hava durumu (Open-Meteo) ve KDE Connect (D-Bus)
+- `weather.py`, `football.py`, `phone.py`: hava durumu (Open-Meteo), maç takibi (ESPN) ve KDE Connect (D-Bus)
 - `caldav.py`, `calendar_ics.py`: bağımlılıksız CalDAV istemcisi ve iCalendar okuyucu
 - `contents/ui/`: QML arayüz (`main.qml` ada ve panel, `IslandTabs.qml` sekme çubuğu, `View.qml`/`Bars.qml` ortak parçalar, `Page*.qml` sekmeler)
 - `contents/icons/`: ikonlar Isle projesinden (GPL-3.0, bkz. `contents/icons/LICENSE-isle-GPL3.txt`)

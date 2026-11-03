@@ -44,6 +44,7 @@ Item {
         Layout.fillWidth: true
         radius: 15
         color: pMa.pressed ? "#48484a" : (pMa.containsMouse || hot ? "#3a3a3c" : Qt.rgba(1, 1, 1, 0.17))
+        GlassBack { hot: pMa.containsMouse; down: pMa.pressed }
         Behavior on color { ColorAnimation { duration: 120 } }
         Row {
             anchors.centerIn: parent

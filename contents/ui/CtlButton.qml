@@ -22,6 +22,12 @@ Rectangle {
     Behavior on scale { NumberAnimation { duration: 110; easing.type: Easing.OutCubic } }
     Behavior on color { ColorAnimation { duration: 120 } }
 
+    GlassBack {   // hover/basınca cam; yarı saydam dolgulu (filled) düğmelerde hep cam
+        shown: b.filled ? b.fillColor.a < 0.5 : (ma.containsMouse || ma.pressed)
+        hot: ma.containsMouse
+        down: ma.pressed
+    }
+
     Ico {
         anchors.centerIn: parent
         source: b.icon

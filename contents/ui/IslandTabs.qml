@@ -23,7 +23,8 @@ Item {
         { icon: "view-app-grid-symbolic", label: sh.t("Uygulama") },
         { icon: sh.ic("isle-gauge"), label: sh.t("Sistem") },
         { icon: sh.ic("isle-shelf"), label: sh.t("Araçlar") },
-        { icon: sh.ic("isle-weather"), label: sh.t("Hava") }
+        { icon: sh.ic("isle-weather"), label: sh.t("Hava") },
+        { icon: sh.ic("isle-football"), label: sh.t("Maç") }
     ]
 
     // Sürüklerken geçici sıra; yoksa ayardaki sıra
@@ -89,6 +90,7 @@ Item {
                 anchors.centerIn: parent
                 width: parent.width; height: 28; radius: 14
                 color: Qt.rgba(1, 1, 1, 0.05)
+                GlassBack { hot: true }
             }
             // Sürüklenen sekme: hafif parlak halka
             Rectangle {

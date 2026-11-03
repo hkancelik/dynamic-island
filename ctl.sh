@@ -3,7 +3,7 @@
 #   ./ctl.sh toggle   gizle/göster      ./ctl.sh hide | show
 #   ./ctl.sh dnd      Rahatsız Etme aç/kapat
 #   ./ctl.sh panel    paneli aç/kapat
-#   ./ctl.sh tab N [B] paneli N. sekmede aç (Araçlar için B: 0 Pano, 1 Anımsatıcı, 2 Raf, 3 Notlar) (0 Müzik … 6 Sistem, 7 Araçlar, 8 Hava, 9 Ayarlar)
+#   ./ctl.sh tab N [B] paneli N. sekmede aç (Araçlar için B: 0 Pano, 1 Anımsatıcı, 2 Raf, 3 Notlar; Maç için B: 0 Maç, 1 Kadro, 2 Fikstür, 3 Puan) (0 Müzik … 6 Sistem, 7 Araçlar, 8 Hava, 9 Maç, 10 Ayarlar)
 case "$1" in
     toggle) cmd=toggle_hide ;;
     hide)   cmd=hide ;;

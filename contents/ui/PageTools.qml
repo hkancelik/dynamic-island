@@ -22,6 +22,7 @@ Item {
             Layout.preferredHeight: 28
             radius: 14
             color: Qt.rgba(1, 1, 1, 0.11)
+            GlassBack {}
 
             LiquidPill {
                 width: parent.width

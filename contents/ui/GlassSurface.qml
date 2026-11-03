@@ -55,12 +55,36 @@ ShaderEffect {
         var p = g.mapToItem(glassLayer, 0, 0)
         return Qt.vector4d(p.x / glassLayer.width, p.y / glassLayer.height, g.width / glassLayer.width, g.height / glassLayer.height)
     }
+    // imleç ve dalgalar (GlassBackdrop'tan, bu öğenin koordinatlarına çevrilir)
+    property real pointerGain: 1.0
+    readonly property vector4d pointer: {
+        tick
+        var L = glassLayer
+        if (!L || !(L.pointerAmount > 0.002)) return Qt.vector4d(0, 0, 0, 80)
+        var p = g.mapFromItem(L, L.pointerPos.x, L.pointerPos.y)
+        return Qt.vector4d(p.x, p.y, L.pointerAmount * pointerGain * (thin ? 0.75 : 1), Math.max(60, Math.min(width, height) * 1.1))
+    }
+    readonly property vector4d rippleA: {
+        tick
+        var L = glassLayer
+        if (!L || !(L.rpT0 < 1)) return Qt.vector4d(0, 0, 1, 0)
+        var p = g.mapFromItem(L, L.rpPos0.x, L.rpPos0.y)
+        return Qt.vector4d(p.x, p.y, L.rpT0, L.rpAmp * (thin ? 0.8 : 1))
+    }
+    readonly property vector4d rippleB: {
+        tick
+        var L = glassLayer
+        if (!L || !(L.rpT1 < 1)) return Qt.vector4d(0, 0, 1, 0)
+        var p = g.mapFromItem(L, L.rpPos1.x, L.rpPos1.y)
+        return Qt.vector4d(p.x, p.y, L.rpT1, L.rpAmp * (thin ? 0.8 : 1))
+    }
     readonly property real bezel: bezelPx
     readonly property real thickness: thicknessPx
     readonly property real ior: iorValue
-    readonly property real lens: thin ? lensAmount * 0.25 : lensAmount
-    readonly property real frost: frostAmount
-    readonly property real rim: thin ? rimAmount * 0.55 : rimAmount
+    readonly property real mat: glassLayer && glassLayer.mat !== undefined ? glassLayer.mat : 1
+    readonly property real lens: (thin ? lensAmount * 0.25 : lensAmount) * mat
+    readonly property real frost: frostAmount + (1 - frostAmount) * (1 - mat) * 0.85
+    readonly property real rim: (thin ? rimAmount * 0.55 : rimAmount) * (0.35 + 0.65 * mat)
     readonly property real saturation: saturationAmount
     readonly property real lift: liftAmount
     readonly property real chroma: chromaAmount

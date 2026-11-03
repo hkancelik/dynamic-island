@@ -12,7 +12,7 @@ TestCase {
 
     function test_components_compile_data() {
         return ["ActRing", "Ambient", "AppearanceEditor", "CommandPalette", "IslandTabs", "PageMusic", "FadeEdges", "Lyrics", "PageCalendar",
-                "PageSettings", "PageSystem", "Spectrum", "TabsEditor", "QuickLook", "LiquidPill", "PageWeather", "WeatherIcon"].map(function (n) { return { tag: n, name: n } })
+                "PageSettings", "PageSystem", "Spectrum", "TabsEditor", "QuickLook", "LiquidPill", "PageWeather", "WeatherIcon", "PageFootball", "FootballSettings", "Critter", "CritterSettings", "GlassCard", "GlassKnob", "GlassSurface", "GlassBackdrop"].map(function (n) { return { tag: n, name: n } })
     }
     function test_components_compile(data) {
         var c = Qt.createComponent(Qt.resolvedUrl("../../contents/ui/" + data.name + ".qml"))

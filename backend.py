@@ -45,6 +45,8 @@ import lyrics as lyrics_mod  # noqa: E402
 import privacy  # noqa: E402
 import phone as phone_mod  # noqa: E402
 import weather as weather_mod  # noqa: E402
+import football as football_mod  # noqa: E402
+import wallpaper as wallpaper_mod  # noqa: E402
 from alerts import Alerts  # noqa: E402
 from agents import Agents  # noqa: E402
 import controls  # noqa: E402
@@ -101,6 +103,9 @@ class State:
             "docs": [],
             "docNew": {"seq": 0, "id": 0},
             "weather": {"ok": False},
+            "football": {"ok": False},
+            "wallpaper": "",
+            "footballSearch": {"q": "", "items": [], "seq": 0},
             "phone": {"present": False, "devices": []},
             "rec": {"state": "idle", "since": 0, "error": "", "last": ""},
             "panelReq": 0,
@@ -414,9 +419,28 @@ def apply_switch(key, value):
         lyrics.set_want(False)
     elif key == "weather_enabled" and weather:
         weather.refresh()
+    elif key == "football_enabled" and football:
+        football.refresh()
+        if not value:
+            live.end("football")
     elif key == "phone":
         set_phone(bool(value))
     publish_settings()
+
+
+FOOTBALL_COLOR = "#d11317"
+
+
+def on_football(kind, d):
+    """Maç olayları: kadro açıklanınca bildirim, maç sırasında Canlı Etkinlik, gol bildirimi."""
+    color = (state.data.get("football", {}).get("team", {}) or {}).get("color") or FOOTBALL_COLOR
+    for op, msg in football_mod.activity_ops(kind, d, color):
+        if op == "set":
+            live.handle(msg)
+        elif op == "notify":
+            live.notify(msg)
+        elif op == "end":
+            live.end(msg["id"], msg["state"], msg["message"])
 
 
 def set_layout(changes):
@@ -483,7 +507,12 @@ def slow_poller():
     last_cal = 0
     last_ctl = 0
     first_net = True
+    last_wall = None
     while True:
+        wm = wallpaper_mod.mtime()
+        if wm != last_wall:
+            last_wall = wm
+            state.update("wallpaper", wallpaper_mod.current())
         state.update("battery", sysinfo.battery_info())
         prev_net = state.data["wifi"]
         net = read_network_stable()
@@ -508,6 +537,8 @@ def slow_poller():
             publish_settings()
             if weather:
                 weather.refresh()
+            if football:
+                football.refresh()
         if changed or time.time() - last_cal > 600:
             last_cal = time.time()
             try:
@@ -704,6 +735,7 @@ recorder = None
 focus_timer = None
 lyrics = None
 weather = None
+football = None
 phone = None
 agents = Agents(lambda v: state.update("agents", v))
 snd = sounds_mod.Sounds(lambda: bool(cfg.get("sounds", False)), lambda: cfg.get("sound_volume", 0.45))
@@ -729,6 +761,7 @@ def set_dnd(on):
 
 
 def execute(cmd, arg):
+    global cfg
     if cmd == "play_pause":
         mpris.call("PlayPause")
     elif cmd == "next":
@@ -757,6 +790,28 @@ def execute(cmd, arg):
         set_layout(arg)
     elif cmd == "setting" and isinstance(arg, dict):
         apply_switch(str(arg.get("key", "")), bool(arg.get("value")))
+    elif cmd == "football_team" and isinstance(arg, dict) and str(arg.get("id", "")).isdigit():
+        team = {"id": str(arg["id"]), "name": str(arg.get("name", ""))[:60],
+                "league": str(arg.get("league", "eng.1"))[:30]}
+        config.set_value("football", {**cfg.get("football", {}), "team": team})
+        cfg = config.load()
+        live.end("football")
+        if football:
+            football.refresh()
+    elif cmd == "football_search" and isinstance(arg, str):
+        q = arg.strip()[:40]
+
+        def _search(q=q):
+            try:
+                items = football_mod.search_teams(q)
+            except Exception as e:
+                print("takım araması başarısız:", e, flush=True)
+                items = []
+            state.update("footballSearch", {"q": q, "items": items,
+                                            "seq": state.data["footballSearch"]["seq"] + 1})
+        threading.Thread(target=_search, daemon=True).start()
+    elif cmd == "football_refresh" and football:
+        football.refresh()
     elif cmd == "phone_ring" and phone:
         bg(lambda: phone.ring(str(arg)))
     elif cmd == "claude_hooks":
@@ -816,7 +871,7 @@ def execute(cmd, arg):
             subprocess.Popen(["xdg-open", str(arg)], stdout=subprocess.DEVNULL,
                              stderr=subprocess.DEVNULL, start_new_session=True)
     elif cmd == "open_tab" and isinstance(arg, dict):
-        # Paneli belirli bir sekmede aç (betikler / kısayollar için): {"tab": 0-8, "lyrics": bool, "sub": Araçlar bölümü 0-3}
+        # Paneli belirli bir sekmede aç (betikler / kısayollar için): {"tab": 0-9, "lyrics": bool, "sub": Araçlar bölümü 0-3}
         req = {"seq": state.data["tabReq"]["seq"] + 1, "tab": int(arg.get("tab", 0))}
         if "lyrics" in arg:
             req["lyrics"] = bool(arg["lyrics"])
@@ -1059,12 +1114,16 @@ def main():
     except Exception as e:
         print("Gece Işığı denetimi yok:", e, flush=True)
     refresh_audio()
-    global store, stats, clip, recorder, focus_timer, lyrics, weather
+    global store, stats, clip, recorder, focus_timer, lyrics, weather, football
     lyrics = lyrics_mod.Lyrics(lambda v: state.update("lyrics", v))
     privacy.Privacy(lambda v: state.update("privacy", v))
     weather = weather_mod.Weather(
         lambda v: state.update("weather", v),
         lambda: {**cfg.get("weather", {}), "enabled": cfg.get("weather_enabled", True)})
+    football = football_mod.Football(
+        lambda v: state.update("football", v),
+        lambda: {**cfg.get("football", {}), "enabled": cfg.get("football_enabled", True)},
+        on_football)
     if cfg.get("phone", True):
         set_phone(True)
     Alerts(emit_alert)

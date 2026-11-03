@@ -78,6 +78,13 @@ Built-in icons: `build` `download` `upload` `timer` `test` `deploy` `sync` `term
 `warning`, or any freedesktop icon name. The token file is readable only by you, and the server listens on
 `127.0.0.1` only and refuses browser requests.
 
+## Match day
+Follow a football team from the **Match** tab (Liverpool by default, change it under *Team*): live score and minute,
+the starting eleven drawn on a pitch with the formation and substitutes, next fixtures and recent results across the
+league and the European cups. When the team sheet is published the island announces it, during the game a Live
+Activity shows the score and minute on the closed island, and goals pop up as short notifications. Data comes from
+ESPN's public endpoints (no key); nothing is stored.
+
 ## Command palette
 
 Press **Meta+Alt+Space** (or run `island palette`) and the island becomes a search field: everything

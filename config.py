@@ -31,9 +31,9 @@ def private_open(path, mode="w"):
     return os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), mode)
 
 # Paneldeki sekmeler (arayüzdeki sayfa numarası = bu listedeki sıra)
-TABS = ("music", "notifications", "focus", "calendar", "controls", "apps", "system", "tools", "weather")
+TABS = ("music", "notifications", "focus", "calendar", "controls", "apps", "system", "tools", "weather", "football")
 # Ekrandaki varsayılan sıra (sayfa numaralarından ayrı): Hava, Sistem'in yanında
-DEFAULT_ORDER = ("music", "notifications", "focus", "calendar", "controls", "apps", "system", "weather", "tools")
+DEFAULT_ORDER = ("music", "notifications", "focus", "calendar", "controls", "apps", "system", "weather", "football", "tools")
 
 DEFAULTS = {
     # Google Takvim → Ayarlar → takvimi seç → "iCal biçimindeki gizli adres"
@@ -82,6 +82,11 @@ DEFAULTS = {
     # boşsa IP adresinden yaklaşık konum bulunur.
     "weather_enabled": True,
     "weather": {"city": ""},
+    # Maç takibi (ESPN, anahtarsız): takım, kadro açıklanınca bildirim, maç sırasında Canlı Etkinlik
+    "football_enabled": True,
+    # Adadaki küçük karakter (müzikte dans eder, odakta çalışır, gece uyur)
+    "critter": False,
+    "football": {"team": {"id": "364", "name": "Liverpool", "league": "eng.1"}},
     # Telefon (KDE Connect): pil, gelen arama, telefonu çaldır
     "phone": True,
     # Panel düzeni ve görünüm (adanın Ayarlar → Sekmeler / Görünüm bölümünden değişir)
@@ -124,7 +129,7 @@ def load():
 
 # Adanın Ayarlar sayfasından değiştirilebilen açık/kapalı ayarlar
 SWITCHES = ("suppress_plasma_popups", "hide_in_fullscreen", "clipboard_history",
-            "lyrics", "meeting_alerts", "privacy_dots", "weather_enabled", "phone", "spectrum",
+            "lyrics", "meeting_alerts", "privacy_dots", "weather_enabled", "football_enabled", "phone", "spectrum", "critter",
             "otp_capture", "sounds", "screenshot_preview", "split_island")
 
 
