@@ -7,7 +7,7 @@ and **Live Activities** any script can drive from the terminal.
 
 **English** · [Türkçe](README.tr.md)
 
-[![CI](https://github.com/nailhakan/dynamic-island/actions/workflows/ci.yml/badge.svg)](https://github.com/nailhakan/dynamic-island/actions/workflows/ci.yml)
+[![CI](https://github.com/hkancelik/dynamic-island/actions/workflows/ci.yml/badge.svg)](https://github.com/hkancelik/dynamic-island/actions/workflows/ci.yml)
 ![Plasma 6](https://img.shields.io/badge/KDE%20Plasma-6%20·%20Wayland-1d99f3)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
@@ -175,7 +175,7 @@ dbus-python, `kscreen-doctor`, `nmcli`, `wpctl`/`pactl`. Optional: `kdeconnect`,
 `bluez-utils`, `libsecret`.
 
 ```bash
-git clone https://github.com/nailhakan/dynamic-island
+git clone https://github.com/hkancelik/dynamic-island
 cd dynamic-island
 ./install.sh          # systemd user service + `island` in ~/.local/bin
 ```

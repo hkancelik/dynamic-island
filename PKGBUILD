@@ -5,7 +5,7 @@ pkgver=0.2.0
 pkgrel=1
 pkgdesc="Dynamic Island for KDE Plasma 6 (Wayland): music, focus, notifications, calendar, controls"
 arch=('any')
-url="https://github.com/nailhakan/dynamic-island"
+url="https://github.com/hkancelik/dynamic-island"
 license=('GPL3')   # ikonlar Isle projesinden (GPL-3.0)
 depends=('qt6-declarative' 'layer-shell-qt' 'kirigami' 'python' 'python-gobject' 'python-dbus'
          'libkscreen' 'networkmanager' 'wireplumber' 'libpulse')
