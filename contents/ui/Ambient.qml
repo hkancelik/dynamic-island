@@ -76,19 +76,26 @@ Item {
         }
     }
 
-    // Alt ışık: basla nefes alır
+    // Alt ışık: basla nefes alır.
+    // Not: Rectangle köşe yarıçapını yüksekliğinin yarısıyla sınırlar; 30 px'lik bir şeridin köşesi
+    // en fazla 15 px dönerdi ve adanın 36 px'lik köşesinin dışına taşardı. Bu yüzden şerit
+    // yarıçapın iki katı yüksekliğinde; görünen ışık gradyanla yine alttaki 30 px'e sıkıştırılır.
     Rectangle {
+        id: under
+        objectName: "glowUnder"
+        readonly property real lit: 30                            // ışığın görünen yüksekliği
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        height: Math.min(parent.height, 30)
+        height: Math.min(parent.height, Math.max(lit, amb.radius * 2))
         visible: opacity > 0.01
         opacity: amb.bass
         Behavior on opacity { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
-        bottomLeftRadius: Math.min(amb.radius, height)
-        bottomRightRadius: Math.min(amb.radius, height)
+        bottomLeftRadius: amb.radius
+        bottomRightRadius: amb.radius
         gradient: Gradient {
             GradientStop { position: 0; color: "transparent" }
+            GradientStop { position: Math.max(0, 1 - under.lit / under.height); color: "transparent" }
             GradientStop { position: 1; color: amb.vivid ? Qt.rgba(amb.accent.r, amb.accent.g, amb.accent.b, 0.55)
                                                          : Qt.rgba(1, 1, 1, 0.16) }   // sade: nötr ışık
         }

@@ -208,6 +208,13 @@ Item {
                 }
             }
 
+            // Kaydırılabilir kenarlarda satırlar erir (siyah şerit değil)
+            FadeEdges {
+                id: evFade
+                view: evList
+                fadeTop: evList.atYBeginning ? 0 : 14
+                fadeBottom: evList.atYEnd ? 0 : 18
+            }
             ListView {
                 id: evList
                 visible: sh.cal.configured
@@ -217,18 +224,8 @@ Item {
                 spacing: 3
                 boundsBehavior: Flickable.StopAtBounds
                 model: page.dayEvents
-                // Kaydırılabilir kenar kesilmek yerine solar
-                Rectangle {
-                    z: 2
-                    visible: !evList.atYEnd
-                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                    height: 18
-                    gradient: Gradient {
-                        GradientStop { position: 0; color: "transparent" }
-                        GradientStop { position: 1; color: "black" }
-                    }
-                }
                 delegate: Rectangle {
+                    id: evRow
                     required property var modelData
                     readonly property bool whole: modelData.allDay || (modelData.start <= page.dayMs && modelData.end >= page.dayMs + 86400000)
                     readonly property bool past: modelData.end <= sh.nowMs && modelData.end !== modelData.start
@@ -237,7 +234,7 @@ Item {
                     height: 26
                     radius: 8
                     color: Qt.rgba(accent.r, accent.g, accent.b, 0.2)
-                    opacity: past ? 0.5 : 1
+                    opacity: (past ? 0.5 : 1) * evFade.factor(evRow)
 
                     Rectangle {
                         x: 5; y: 4
@@ -294,6 +291,7 @@ Item {
                     }
                 }
             }
+
 
             Item { visible: !sh.cal.configured; Layout.fillHeight: true }
         }

@@ -16,14 +16,15 @@ Item {
         width: 36; height: 22; radius: 11
         color: on ? "#30d158" : "#3a3a3c"
         Behavior on color { ColorAnimation { duration: 150 } }
-        Rectangle {
-            width: 18; height: 18; radius: 9
+        GlassKnob {
+            sh: page.sh
+            width: 18; height: 18
             y: 2
             x: sw.on ? sw.width - width - 2 : 2
-            color: "white"
+            pressed: swArea.pressed
             Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
         }
-        MouseArea { anchors.fill: parent; onClicked: sw.toggled() }
+        MouseArea { id: swArea; anchors.fill: parent; onClicked: sw.toggled() }
     }
 
     component Row2: Item {
@@ -73,7 +74,7 @@ Item {
 
     // Bölümler: Genel | Sekmeler | Görünüm
     readonly property int section: sh.settingsSub
-    readonly property var sections: [sh.t("Genel"), sh.t("Sekmeler"), sh.t("Görünüm")]
+    readonly property var sections: [sh.t("Genel"), sh.t("Özellikler"), sh.t("Sekmeler"), sh.t("Görünüm")]
     Rectangle {
         id: seg
         width: parent.width
@@ -87,6 +88,8 @@ Item {
             restAlpha: 0.17
             goalW: (parent.width - 6) / page.sections.length
             goalX: 3 + page.section * goalW
+            glassLayer: page.sh.glassLayer
+            glassFrost: page.sh.glassFrost || 0.3
         }
         Row {
             anchors.fill: parent
@@ -121,8 +124,70 @@ Item {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
 
-        TabsEditor { anchors.fill: parent; sh: page.sh; visible: page.section === 1 }
-        AppearanceEditor { anchors.fill: parent; sh: page.sh; visible: page.section === 2 }
+        TabsEditor { anchors.fill: parent; sh: page.sh; visible: page.section === 2 }
+        AppearanceEditor { anchors.fill: parent; sh: page.sh; visible: page.section === 3 }
+
+        GridLayout {
+            visible: page.section === 1
+            anchors.left: parent.left
+            anchors.right: parent.right
+            columns: 2
+            columnSpacing: 28
+            rowSpacing: 2
+
+            Row2 {
+                title: sh.t("Şarkı sözleri")
+                hint: sh.t("LRCLIB'den, söz görünümü açıkken")
+                on: page.st.lyrics
+                onToggled: page.set("lyrics", !on)
+            }
+
+            Row2 {
+                title: sh.t("Toplantı uyarısı")
+                hint: sh.t("Etkinlikten 5 dk önce, Katıl ile")
+                on: page.st.meeting_alerts
+                onToggled: page.set("meeting_alerts", !on)
+            }
+
+            Row2 {
+                title: sh.t("Gizlilik noktaları")
+                hint: sh.t("Kamera, mikrofon, ekran paylaşımı")
+                on: page.st.privacy_dots
+                onToggled: page.set("privacy_dots", !on)
+            }
+
+            Row2 {
+                title: sh.t("Gerçek ses spektrumu")
+                hint: sh.t("Çubuklar müziğe göre (yalnızca bellekte)")
+                on: page.st.spectrum !== false
+                onToggled: page.set("spectrum", !on)
+            }
+
+            Row2 {
+                title: sh.t("Bölünmüş ada")
+                hint: sh.t("İkinci şeye küçük bir daire ayrılır")
+                on: page.st.split_island !== false
+                onToggled: page.set("split_island", !on)
+            }
+            Row2 {
+                title: sh.t("Doğrulama kodları")
+                hint: sh.t("Kodu büyük göster, dokununca kopyala")
+                on: page.st.otp_capture !== false
+                onToggled: page.set("otp_capture", !on)
+            }
+            Row2 {
+                title: sh.t("Ekran görüntüsü önizlemesi")
+                hint: sh.t("Sürükle, aç ya da kopyala")
+                on: page.st.screenshot_preview !== false
+                onToggled: page.set("screenshot_preview", !on)
+            }
+            Row2 {
+                title: sh.t("Arayüz sesleri")
+                hint: sh.t("Yumuşak sesler · alarm hep çalar")
+                on: page.st.sounds === true
+                onToggled: page.set("sounds", !on)
+            }
+        }
 
     ColumnLayout {
         visible: page.section === 0
@@ -152,24 +217,6 @@ Item {
                 hint: sh.t("Yalnızca bellekte tutulur")
                 on: page.st.clipboard_history
                 onToggled: page.set("clipboard_history", !on)
-            }
-            Row2 {
-                title: sh.t("Şarkı sözleri")
-                hint: sh.t("LRCLIB'den, söz görünümü açıkken")
-                on: page.st.lyrics
-                onToggled: page.set("lyrics", !on)
-            }
-            Row2 {
-                title: sh.t("Toplantı uyarısı")
-                hint: sh.t("Etkinlikten 5 dk önce, Katıl ile")
-                on: page.st.meeting_alerts
-                onToggled: page.set("meeting_alerts", !on)
-            }
-            Row2 {
-                title: sh.t("Gizlilik noktaları")
-                hint: sh.t("Kamera, mikrofon, ekran paylaşımı")
-                on: page.st.privacy_dots
-                onToggled: page.set("privacy_dots", !on)
             }
             Row2 {
                 title: sh.t("Hava durumu")
@@ -227,12 +274,6 @@ Item {
                         }
                     }
                 }
-            }
-            Row2 {
-                title: sh.t("Gerçek ses spektrumu")
-                hint: sh.t("Çubuklar müziğe göre; ses yalnızca bellekte çözümlenir")
-                on: page.st.spectrum !== false
-                onToggled: page.set("spectrum", !on)
             }
         }
 

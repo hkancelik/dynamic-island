@@ -30,6 +30,8 @@ Item {
                 restAlpha: 0.17
                 goalW: (parent.width - 6) / page.names.length
                 goalX: 3 + page.sub * goalW
+                glassLayer: page.sh.glassLayer
+                glassFrost: page.sh.glassFrost || 0.3
             }
             Row {
                 anchors.fill: parent

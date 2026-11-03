@@ -82,6 +82,7 @@ Item {
             }
 
             IslandSlider {
+                sh: lp.sh
                 Layout.fillWidth: true
                 Layout.preferredHeight: 14
                 barHeight: 3
@@ -125,6 +126,18 @@ Item {
                 Item { width: 28; height: 28 }
             }
 
+            // Hangi kayıttan geldiği: yanlış şarkı eşleşirse fark edilsin ("Sanatçı – Şarkı")
+            Text {
+                Layout.fillWidth: true
+                visible: (lyr.status === "synced" || lyr.status === "plain") && !!lyr.match
+                renderType: Text.CurveRendering
+                font.family: "Inter"
+                text: "LRCLIB · " + (lyr.match || "")
+                color: Qt.rgba(1, 1, 1, 0.3)
+                font.pixelSize: 10
+                elide: Text.ElideRight
+            }
+
             Item { Layout.fillHeight: true }
         }
 
@@ -134,8 +147,16 @@ Item {
             Layout.fillHeight: true
             clip: true
 
+            // Kenarlarda satırlar erir (siyah şerit değil; albüm ışığının üstünde de temiz görünür)
+            FadeEdges {
+                id: fade
+                view: list
+                fadeTop: lp.synced ? 30 : 14
+                fadeBottom: lp.synced ? 38 : 18
+            }
             ListView {
                 id: list
+                objectName: "lyricsList"
                 anchors.fill: parent
                 visible: lp.lines.length > 0 && (lp.synced || lyr.status === "plain")
                 model: lp.lines
@@ -178,6 +199,7 @@ Item {
                     readonly property int d: index - lp.cur
                     readonly property bool now: lp.synced && d === 0
                     readonly property bool pause: lp.synced && modelData[1] === ""
+                    readonly property real edge: fade.factor(row)       // görünüm kenarında 0
                     width: list.width
                     height: pause ? 22 : words.height
 
@@ -189,6 +211,7 @@ Item {
 
                     Text {
                         id: words
+                        opacity: row.edge
                         visible: !row.pause
                         renderType: Text.CurveRendering
                         font.family: "Inter"
@@ -207,12 +230,15 @@ Item {
                     // Sözsüz ara: nefes alan üç nokta
                     Row {
                         visible: row.pause
+                        opacity: row.edge
+                        x: 3                       // büyüyen (1,35×) sol nokta liste kenarında kırpılmasın
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 6
                         Repeater {
                             model: 3
                             Rectangle {
                                 required property int index
+                                objectName: "pauseDot" + index
                                 width: 7; height: 7; radius: 3.5
                                 color: "white"
                                 SequentialAnimation on scale {
@@ -232,24 +258,6 @@ Item {
                         cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                         onClicked: sh.send("seek", row.modelData[0])
                     }
-                }
-            }
-
-            // Kenarlarda solma
-            Rectangle {
-                anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-                height: 20
-                gradient: Gradient {
-                    GradientStop { position: 0; color: "black" }
-                    GradientStop { position: 1; color: "transparent" }
-                }
-            }
-            Rectangle {
-                anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                height: 26
-                gradient: Gradient {
-                    GradientStop { position: 0; color: "transparent" }
-                    GradientStop { position: 1; color: "black" }
                 }
             }
 
@@ -311,6 +319,34 @@ Item {
                     text: parent.st[2]
                     color: Qt.rgba(1, 1, 1, 0.4)
                     font.pixelSize: 11
+                }
+                // Bulunamadı / hata: elle ara ("sanatçı şarkı"); sonuç bu şarkı için saklanır
+                Rectangle {
+                    visible: lyr.status === "not_found" || lyr.status === "error"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: 236; height: 28; radius: 14
+                    color: Qt.rgba(1, 1, 1, manualInput.activeFocus ? 0.20 : 0.11)
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                    TextInput {
+                        id: manualInput
+                        anchors.fill: parent
+                        anchors.leftMargin: 14
+                        anchors.rightMargin: 14
+                        verticalAlignment: TextInput.AlignVCenter
+                        color: "white"
+                        font.family: "Inter"
+                        font.pixelSize: 12
+                        selectByMouse: true
+                        clip: true
+                        onAccepted: { if (text.trim() !== "") { sh.send("lyrics_search", text.trim()); text = "" } }
+                        Text {
+                            visible: !manualInput.text && !manualInput.activeFocus
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: sh.t("Elle ara: sanatçı şarkı")
+                            color: Qt.rgba(1, 1, 1, 0.4)
+                            font: manualInput.font
+                        }
+                    }
                 }
             }
         }

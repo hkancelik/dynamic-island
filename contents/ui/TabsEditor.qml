@@ -8,22 +8,23 @@ Item {
     property var sh
 
     readonly property var icons: [sh.ic("isle-music"), sh.ic("isle-bell"), sh.ic("isle-timer"), sh.ic("isle-calendar"),
-                                  sh.ic("isle-sun-symbolic"), "view-app-grid-symbolic", sh.ic("isle-gauge"), sh.ic("isle-shelf")]
+                                  sh.ic("isle-sun-symbolic"), "view-app-grid-symbolic", sh.ic("isle-gauge"), sh.ic("isle-shelf"), sh.ic("isle-weather")]
     readonly property var labels: [sh.t("Müzik"), sh.t("Bildirim"), sh.t("Odak"), sh.t("Takvim"),
-                                   sh.t("Kontrol"), sh.t("Uygulama"), sh.t("Sistem"), sh.t("Araçlar")]
+                                   sh.t("Kontrol"), sh.t("Uygulama"), sh.t("Sistem"), sh.t("Araçlar"), sh.t("Hava")]
 
     property var draft: null
     property int dragId: -1
     readonly property var order: draft || sh.allTabIds
     readonly property var hidden: sh.hiddenTabIds()
     readonly property real gap: 6
-    readonly property real cellW: (width - gap * 7) / 8
+    readonly property int count: sh.tabKeys.length
+    readonly property real cellW: (width - gap * (count - 1)) / count
 
     function toggle(id) {
         var h = hidden.slice()
         var i = h.indexOf(id)
         if (i >= 0) h.splice(i, 1)
-        else if (h.length < 7) h.push(id)      // en az bir sekme kalsın
+        else if (h.length < count - 1) h.push(id)      // en az bir sekme kalsın
         else return
         sh.saveTabOrder(order, h)
     }
@@ -70,7 +71,7 @@ Item {
         height: 82
 
         Repeater {
-            model: 8
+            model: ed.count
             Rectangle {
                 id: tile
                 required property int index
@@ -163,7 +164,7 @@ Item {
                         }
                         moved = true
                         tile.dragX = Math.max(-6, Math.min(strip.width - tile.width + 6, px - grab))
-                        var pos = Math.max(0, Math.min(7, Math.round(tile.dragX / (ed.cellW + ed.gap))))
+                        var pos = Math.max(0, Math.min(ed.count - 1, Math.round(tile.dragX / (ed.cellW + ed.gap))))
                         var rest = ed.draft.filter(function (id) { return id !== tile.index })
                         var next = rest.slice(0, pos).concat([tile.index]).concat(rest.slice(pos))
                         if (next.join() !== ed.draft.join()) ed.draft = next
@@ -221,7 +222,7 @@ Item {
                 id: resetMa
                 anchors.fill: parent
                 hoverEnabled: true
-                onClicked: sh.saveTabOrder([0, 1, 2, 3, 4, 5, 6, 7], [])
+                onClicked: sh.saveTabOrder(sh.defaultTabIds, [])
             }
         }
     }

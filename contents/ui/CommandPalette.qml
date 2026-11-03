@@ -35,6 +35,9 @@ Item {
         }
     }
     Timer { id: focusTimer; interval: 30; onTriggered: input.forceActiveFocus() }
+    function refocus() { input.forceActiveFocus() }
+    // Seçili sonuç bir dosya/klasörse yolu (Hızlı Bakış için)
+    function previewPath(it) { return it && (it.kind === "path" || it.kind === "file") ? (it.path || it.id || "") : "" }
     // `island palette "metin"`: aramayı doldurarak aç
     function prefill(q) { input.text = q; input.cursorPosition = q.length }
 
@@ -90,7 +93,8 @@ Item {
         { t: sh.t("Sistem"), k: "system cpu ram sistem", icon: sh.ic("isle-gauge"), tab: 6 },
         { t: sh.t("Pano"), k: "clipboard pano", icon: sh.ic("isle-clipboard"), tab: 7, sub: 0 },
         { t: sh.t("Notlar"), k: "notes not", icon: sh.ic("isle-text"), tab: 7, sub: 3 },
-        { t: sh.t("Ayarlar"), k: "settings ayarlar tercihler", icon: sh.ic("isle-settings"), tab: 8, suggest: true }
+        { t: sh.t("Hava durumu"), k: "weather hava durumu yagmur sicaklik forecast", icon: sh.ic("isle-weather"), tab: 8 },
+        { t: sh.t("Ayarlar"), k: "settings ayarlar tercihler", icon: sh.ic("isle-settings"), tab: 9, suggest: true }
     ]
 
     readonly property var results: {
@@ -197,9 +201,9 @@ Item {
             var payload = {}
             for (var k in it) if (k !== "title" && k !== "subtitle" && k !== "s" && k !== "mono" && k !== "remote") payload[k] = it[k]
             sh.send("palette_run", payload)
-            if (it.kind === "copy") sh.toast(sh.t("Panoya kopyalandı"), "dialog-ok-apply")
+            if (it.kind === "copy") { sh.sound("copy"); sh.toast(sh.t("Panoya kopyalandı"), "dialog-ok-apply") }
         }
-        else if (it.kind === "calc") { sh.send("copy_text", it.title); sh.toast(sh.t("Sonuç kopyalandı"), "dialog-ok-apply") }
+        else if (it.kind === "calc") { sh.sound("copy"); sh.send("copy_text", it.title); sh.toast(sh.t("Sonuç kopyalandı"), "dialog-ok-apply") }
         else if (it.kind === "timer") sh.send("timer_start", { duration: it.duration, title: it.label })
         else if (it.kind === "clip") sh.send("clip_copy", it.index)
         else if (it.kind === "web") sh.send("web_search", query)
@@ -227,6 +231,7 @@ Item {
         }
         TextInput {
             id: input
+            objectName: "paletteInput"
             anchors.left: glass.right
             anchors.leftMargin: 12
             anchors.right: escHint.left
@@ -245,6 +250,14 @@ Item {
             Keys.onReturnPressed: pal.run(pal.results[pal.sel], pal.sel)
             Keys.onEnterPressed: pal.run(pal.results[pal.sel], pal.sel)
             Keys.onEscapePressed: sh.paletteOpen = false
+            // Ctrl+Y ya da Ctrl+Boşluk: seçili dosyanın Hızlı Bakış önizlemesi
+            Keys.onPressed: e => {
+                if ((e.modifiers & Qt.ControlModifier) && (e.key === Qt.Key_Y || e.key === Qt.Key_Space)) {
+                    var p = pal.previewPath(pal.results[pal.sel])
+                    if (p) sh.openQuickLook(p)
+                    e.accepted = true
+                }
+            }
             Keys.onTabPressed: pal.sel = (pal.sel + 1) % Math.max(1, pal.results.length)
             Text {
                 visible: !input.text
@@ -363,7 +376,7 @@ Item {
                     anchors.right: parent.right
                     anchors.rightMargin: 14
                     anchors.verticalCenter: parent.verticalCenter
-                    text: row.arming ? sh.t("Onayla ↵") : row.on ? "↵" : pal.kindLabel(row.modelData.kind, row.modelData)
+                    text: row.arming ? sh.t("Onayla ↵") : row.on ? (pal.previewPath(row.modelData) ? "⌃Y   ↵" : "↵") : pal.kindLabel(row.modelData.kind, row.modelData)
                     color: row.arming ? "#ff6961" : Qt.rgba(1, 1, 1, row.on ? 0.7 : 0.3)
                     font.family: "Inter"
                     font.pixelSize: row.on ? 14 : 11

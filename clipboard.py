@@ -152,7 +152,8 @@ class Clipboard:
                 if fd is not None:
                     try:
                         with os.fdopen(fd, "wb") as f:
-                            f.write(self.sources[obj].encode())
+                            data = self.sources[obj]
+                            f.write(data.encode() if isinstance(data, str) else data[1])
                     except OSError:
                         pass
             elif op == 1:                                 # cancelled
@@ -257,6 +258,27 @@ class Clipboard:
         for m in TEXT_MIMES[:2]:
             self._send(src, 0, _pstr(m))                           # offer
         self._send(self.device, 0, struct.pack("<I", src))         # set_selection
+
+    IMAGE_MIMES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
+
+    def copy_image(self, path):
+        """Bir resim dosyasını panoya koyar (ekran görüntüsü önizlemesi). 25 MB'a kadar, yalnızca bilinen türler."""
+        mime = self.IMAGE_MIMES.get(os.path.splitext(path)[1].lower())
+        if not self.ok or not mime:
+            return False
+        try:
+            if os.path.getsize(path) > 25 * 1024 * 1024:
+                return False
+            with open(path, "rb") as f:
+                data = f.read()
+        except OSError:
+            return False
+        src = self._alloc()
+        self.sources[src] = (mime, data)
+        self._send(self.manager, 0, struct.pack("<I", src))        # create_data_source
+        self._send(src, 0, _pstr(mime))                            # offer
+        self._send(self.device, 0, struct.pack("<I", src))         # set_selection
+        return True
 
     def delete(self, item_id):
         self.items = [i for i in self.items if i["id"] != item_id]
