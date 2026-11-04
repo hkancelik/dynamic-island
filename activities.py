@@ -15,6 +15,11 @@ Alanlar (hepsi isteğe bağlı, id dışında):
   icon              hazır ad (build, download, upload, timer, test, deploy, sync, terminal,
                     music, mail, check, warning) ya da freedesktop ikon adı
   color             "#rrggbb" vurgu rengi
+  left, right       skor tabelası (maç): iki yanın kısa metni ("1", "0"); ikisi de varsa kapalı ada
+                    [sol_ikon sol] orta [sağ sağ_ikon] biçiminde çizilir
+  left_icon,        takım logosu: hazır/freedesktop ikon adı, mutlak dosya yolu ya da file:// adresi
+  right_icon
+  center            iki skorun ortasında kısa metin ("67'", "İY"); boşsa saat görünür
   end               bitiş anı (ms, epoch): geri sayım; süre dolunca etkinlik kendiliğinden biter
   ttl               saniye; bu kadar güncellenmezse etkinlik kaldırılır (varsayılan 900)
 """
@@ -52,6 +57,14 @@ def _now_ms():
 
 def _text(v, n):
     return " ".join(str(v).split())[:n] if v is not None else ""
+
+
+def _logo(v):
+    """İkon adı, mutlak yol ya da file:// adresi; diğer her şey (http dahil) boş sayılır."""
+    v = _text(v, 256)
+    if v.startswith("file://") or v.startswith("/"):
+        return v
+    return v if re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", v) else ""
 
 
 def _num(v):
@@ -149,7 +162,8 @@ class Activities:
                     self._items.pop(oldest)
                     self._seen.pop(oldest, None)
                 cur = {"id": aid, "title": aid, "subtitle": "", "progress": -1.0, "value": "",
-                       "icon": "", "color": "", "start": _now_ms(), "end": 0, "ttl": DEFAULT_TTL}
+                       "icon": "", "color": "", "left": "", "right": "", "left_icon": "",
+                       "right_icon": "", "center": "", "start": _now_ms(), "end": 0, "ttl": DEFAULT_TTL}
             a = dict(cur)
             if "title" in d:
                 a["title"] = _text(d["title"], 80) or aid
@@ -159,6 +173,12 @@ class Activities:
                 a["value"] = _text(d["value"], 12)
             if "icon" in d:
                 a["icon"] = _text(d["icon"], 64)
+            for k in ("left", "right", "center"):
+                if k in d:
+                    a[k] = _text(d[k], 12)
+            for k in ("left_icon", "right_icon"):
+                if k in d:
+                    a[k] = _logo(d[k])
             if "progress" in d:
                 p = d["progress"]
                 if p is None or str(p).strip() in ("", "-1"):
