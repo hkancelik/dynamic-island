@@ -37,6 +37,13 @@ EN = {
     "Konsole profili": "Konsole profile", "Hafta": "Week", "Renk · kopyalamak için Enter": "Colour · Enter to copy",
     "Doğru yazılmış": "Spelled correctly", "Öneri · kopyalamak için Enter": "Suggestion · Enter to copy",
     "Pencere": "Window", "Sekme": "Tab", "Geçmiş": "History",
+    # maç takibi
+    "%s kadrosu açıklandı": "%s lineup announced", "rakip: %s": "opponent: %s", "GOL! %s": "GOAL! %s",
+    "Gol: %s": "Goal: %s", "Maç sona erdi: %s": "Full time: %s",
+    "Şampiyonlar Ligi": "Champions League", "Avrupa Ligi": "Europa League", "Konferans Ligi": "Conference League",
+    "Küme düşme": "Relegation", "Yükselme": "Promotion", "Yükselme play-off": "Promotion play-off",
+    "Düşme play-off": "Relegation play-off", "Son 16": "Round of 16", "Eleme play-off": "Knockout play-off",
+    "Elendi": "Eliminated", "Şampiyonlar Ligi'ne katılım": "Champions League qualification",
     # takvim
     "Etkinlik": "Event",
     "yazılabilir takvim yok (config'e caldav hesabı ekle)": "no writable calendar (add a caldav account to config)",

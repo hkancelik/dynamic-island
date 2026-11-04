@@ -12,6 +12,7 @@ Item {
     property int barHeight: 8
     property bool interactive: true
     property bool knob: false
+    property var sh: null          // sıvı cam tutamağı için ana pencere
     property bool smooth: true     // değer değişince dolgu kaysın mı      // ince çizgi + beyaz yuvarlak tutamak
 
     signal moved(real v)      // sürüklerken (sınırlandırılmış)
@@ -49,10 +50,11 @@ Item {
         }
     }
 
-    Rectangle {
+    GlassKnob {
         visible: s.knob
-        width: s.dragging ? 14 : 12; height: width; radius: width / 2
-        color: "white"
+        sh: s.sh
+        pressed: s.dragging
+        width: s.dragging ? 16 : 12; height: width
         anchors.verticalCenter: parent.verticalCenter
         x: Math.max(0, Math.min(s.width - width, s.width * Math.max(0, Math.min(1, s.shown)) - width / 2))
         Behavior on width { NumberAnimation { duration: 120 } }

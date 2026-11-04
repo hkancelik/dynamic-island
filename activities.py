@@ -252,7 +252,8 @@ class Activities:
                         self._seen.pop(aid, None)
                         self._emit()
             if fired and self._play_sound:
-                _chime()
+                # çağrılabilirse (arka uçtaki sentezlenmiş zamanlayıcı sesi) onu, değilse sistem sesini çal
+                (self._play_sound if callable(self._play_sound) else _chime)()
 
 
 def _chime():

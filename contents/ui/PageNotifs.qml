@@ -41,6 +41,7 @@ Item {
                 Layout.preferredHeight: 26
                 radius: 13
                 color: clearMa.pressed ? "#48484a" : clearMa.containsMouse ? "#3a3a3c" : Qt.rgba(1, 1, 1, 0.17)
+                GlassBack { hot: clearMa.containsMouse; down: clearMa.pressed }
                 Text {
                     id: clearText
                     renderType: Text.CurveRendering

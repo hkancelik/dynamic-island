@@ -35,7 +35,7 @@ Window {
     LayerShell.Window.exclusionZone: -1
     // Klavye yalnızca panel açıkken (not yazmak için) ve tıklayınca odak alır
     // Komut paleti açıkken klavye hemen adaya gelsin (yazmaya başlamak için tıklamak gerekmesin)
-    LayerShell.Window.keyboardInteractivity: paletteOpen ? LayerShell.Window.KeyboardInteractivityExclusive
+    LayerShell.Window.keyboardInteractivity: paletteOpen || quickOpen ? LayerShell.Window.KeyboardInteractivityExclusive
                                            : panelOpen ? LayerShell.Window.KeyboardInteractivityOnDemand
                                            : LayerShell.Window.KeyboardInteractivityNone
 
@@ -45,7 +45,9 @@ Window {
 
     Item {
         focus: true
-        Keys.onEscapePressed: { root.panelOpen = false; root.paletteOpen = false }
+        Keys.onEscapePressed: { root.panelOpen = false; root.paletteOpen = false; root.quickOpen = false }
+        // Dosya rafında bir öğenin üstündeyken Boşluk: Hızlı Bakış
+        Keys.onSpacePressed: { if (root.quickOpen) root.closeQuickLook(); else if (root.panelOpen && root.shelfHover) root.openQuickLook(root.shelfHover) }
     }
 
     readonly property string endpoint: "http://127.0.0.1:47615"
@@ -106,6 +108,9 @@ Window {
     property var docs: []               // serbest metin notları (Araçlar → Notlar)
     property var docNew: ({ seq: 0, id: 0 })
     property var weather: ({ ok: false })
+    property var football: ({ ok: false })
+    property string wallpaper: ""
+    property var footballSearch: ({ q: "", items: [], seq: 0 })
     property var phone: ({ present: false, devices: [] })
     property var rec: ({ state: "idle", since: 0, error: "", last: "" })
     // Odak sayacı (arka uçta tutulur): phase idle|work|break, running, end (ms), left (ms)
@@ -117,16 +122,41 @@ Window {
     property var priv: ({ camera: [], mic: [], screen: [] })
     // Ayarlar sayfasının gösterdiği değerler (arka uç config.json'dan yayınlar)
     property var settings: ({ suppress_plasma_popups: true, hide_in_fullscreen: true, clipboard_history: true,
-                              lyrics: true, meeting_alerts: true, privacy_dots: true, weather_enabled: true, phone: true,
-                              spectrum: true,
+                              lyrics: true, meeting_alerts: true, privacy_dots: true, weather_enabled: true, football_enabled: true, phone: true,
+                              spectrum: true, otp_capture: true, sounds: false, screenshot_preview: true, split_island: true,
                               claudeHooks: false,
                               accounts: [], calendars: 0, shortcuts: {}, language: "auto",
                               layout: { tabs: [], hidden: [], open: "last", position: "center", accent: "auto" } })
     readonly property var layout: settings.layout || ({})
     // Malzeme: minimal (varsayılan, sade derinlik) | ambient (canlı renkler) | black (düz siyah)
-    readonly property string material: layout.material === "ambient" || layout.material === "black" ? layout.material : "minimal"
+    readonly property string material: layout.material === "ambient" || layout.material === "black" || layout.material === "glass" ? layout.material : "minimal"
     readonly property bool ambient: material !== "black"
     readonly property bool vivid: material === "ambient"
+    // Sıvı cam: ada gövdesi tek cam levha, kontroller mercekli cam (docs/liquid-glass.md)
+    readonly property bool glassy: material === "glass"
+    // Cam levha yalnızca açık panelde; kapalı ada ve küçük görünümler donanım çentiğiyle uyumlu siyah kalır
+    readonly property bool glassBody: glassy && (mode === "panel" || mode === "palette")
+    readonly property string glassStyle: layout.glass === "frosted" || layout.glass === "clear" ? layout.glass : "balanced"
+    readonly property real glassFrost: glassStyle === "frosted" ? 0.75 : glassStyle === "clear" ? 0.12 : 0.38
+    readonly property Item glassLayer: glassy ? glassBackdrop : null
+    // Cam yüzeylerin arka plandaki konumunu yeniden hesaplatan sayaç (yalnızca cam panelde, kare başına)
+    property real glassTick: 0
+    // Cam yalnızca bir şey hareket ederken yenilenir (açılma/kapanma, sekme değişimi, imleç, kaydırma, dalga);
+    // durgunken doku ve konumlar dondurulur, işlemci boşta kalır.
+    property bool glassActive: false
+    function glassPoke() { glassActive = true; glassIdle.restart() }
+    Timer { id: glassIdle; interval: 1600; onTriggered: root.glassActive = false }
+    readonly property bool glassMoving: glassActive || glassBackdrop.rpT0 < 1 || glassBackdrop.rpT1 < 1
+    FrameAnimation {
+        running: root.glassy && (root.mode === "panel" || root.mode === "palette") && root.glassMoving
+        onTriggered: root.glassTick += 1
+    }
+    // Maddeleşme: cam açılırken buzlu ve düz belirir, sonra berraklaşıp kırılma kazanır; kapanırken tersi
+    property real glassMat: glassBody ? 1 : 0
+    Behavior on glassMat { NumberAnimation { duration: root.glassBody ? 640 : 240; easing.type: Easing.InOutCubic } }
+    onGlassMatChanged: glassPoke()
+    onAccentChanged: glassPoke()
+    onWallpaperChanged: glassPoke()
     // Müzik ışıklarının rengi: canlı modda vurgu rengi, sade modda beyaz
     readonly property color glowColor: vivid ? accent : "white"
     // Bas düzeyi (0..1): alt ışık ve kenar ışığı müziğe göre nefes alır
@@ -137,7 +167,9 @@ Window {
     }
 
     // Sekmeler: sayfa numarası sabit (0 Müzik … 7 Araçlar, 8 Ayarlar), görünen sıra ve gizlilik ayardan.
-    readonly property var tabKeys: ["music", "notifications", "focus", "calendar", "controls", "apps", "system", "tools"]
+    readonly property var tabKeys: ["music", "notifications", "focus", "calendar", "controls", "apps", "system", "tools", "weather", "football"]
+    // Ayarlar → Sekmeler → Varsayılan: Hava, Sistem'in yanında
+    readonly property var defaultTabIds: [0, 1, 2, 3, 4, 5, 6, 8, 7]
     // Sürükleyip bırakınca arka uçtan yanıt gelene kadar yeni sıra hemen görünsün
     property var pendingTabs: null
     onSettingsChanged: pendingTabs = null
@@ -189,7 +221,7 @@ Window {
     // Panel açılırken gösterilecek sekme: ayara göre ilk sekme ya da son açılan (gizlendiyse ilk)
     function openingTab() {
         if (layout.open === "first") return tabOrder[0]
-        return tab === 8 || tabOrder.indexOf(tab) >= 0 ? tab : tabOrder[0]
+        return tab === 10 || tabOrder.indexOf(tab) >= 0 ? tab : tabOrder[0]
     }
     // Claude Code: bekleyen izin istekleri (en eskisi önce) ve son "bitti" haberi
     property var agents: ({ asks: [], done: { seq: 0 } })
@@ -208,6 +240,9 @@ Window {
         return d
     }
     property var lyr: ({ track: "", status: "none", lines: [] })
+    // Ekran görüntüsü önizlemesi: son görüntü ve önizlemede gösterilen
+    property var shot: ({ seq: 0 })
+    property var shotInfo: ({})
     // Gerçek ses spektrumu: yalnızca çubuklar görünürken ve müzik çalarken sorulur
     property var spectrum: []
     readonly property bool spectrumWant: playing && settings.spectrum !== false && fullscreen === false && (
@@ -282,22 +317,29 @@ Window {
     // ------------------------------------------------------------------
     property bool panelOpen: false
     property bool paletteOpen: false    // komut paleti (Meta+Alt+Space, island palette)
-    onPaletteOpenChanged: if (paletteOpen) panelOpen = false
+    // Hızlı Bakış: dosya önizlemesi (palet Ctrl+Y, raf Boşluk, island quicklook)
+    property bool quickOpen: false
+    property string quickPath: ""
+    property var quickInfo: ({})
+    property string shelfHover: ""      // dosya rafında fare üstündeki öğenin yolu
+    onPaletteOpenChanged: { if (paletteOpen) panelOpen = false; sound(paletteOpen ? "palette" : "close") }
     property int toolsSub: 0            // Araçlar sekmesindeki bölüm: 0 Pano, 1 Anımsatıcı, 2 Raf, 3 Notlar
-    property int settingsSub: 0         // Ayarlar bölümü: 0 Genel, 1 Sekmeler, 2 Görünüm
-    property int tab: 0                 // 0 Müzik, 1 Bildirim, 2 Odak, 3 Takvim, 4 Kontrol, 5 Uygulama, 6 Sistem, 7 Araçlar
+    property int settingsSub: 0         // Ayarlar bölümü: 0 Genel, 1 Özellikler, 2 Sekmeler, 3 Görünüm, 4 Maç
+    property int tab: 0                 // 0 Müzik, 1 Bildirim, 2 Odak, 3 Takvim, 4 Kontrol, 5 Uygulama, 6 Sistem, 7 Araçlar, 8 Hava, 9 Maç, 10 Ayarlar
     property bool hovered: false
     property string flashKind: ""       // volume | charge | track | notif | event
     property string chargeKind: "charging"
     property var banner: ({})
 
-    readonly property bool isHidden: ui.hidden && !peek && !panelOpen && !paletteOpen && !dropHover && flashKind === ""
+    readonly property bool isHidden: ui.hidden && !peek && !panelOpen && !paletteOpen && !quickOpen && !dropHover && flashKind === ""
 
     readonly property string mode: {
+        if (quickOpen) return "quicklook"
         if (paletteOpen) return "palette"
         if (panelOpen) return "panel"
         if (dropHover) return "drop"
         if (ask !== null) return "ask"
+        if (flashKind === "shot") return "shot"
         if (flashKind === "notif" || flashKind === "event") return "banner"
         if (flashKind === "toast") return "toast"
         if (flashKind === "alert") return "alert"
@@ -310,12 +352,13 @@ Window {
     }
 
     // Kapalı ada: [sol yuva] saat [sağ yuva]. Saat ortada kalsın diye iki yuva eşit genişlikte.
-    readonly property string leftSlot: rec.state !== "idle" ? "rec" : act !== null ? "act" : hasMedia ? "art"
+    readonly property string leftSlot: rec.state !== "idle" ? "rec" : act !== null ? "act"
+                                     : hasMedia && satKind !== "media" ? "art"
                                      : focusOn ? "ring" : unread > 0 ? "dot" : ""
     readonly property string rightText: rec.state === "recording" ? fmt(secTick - rec.since)
                                       : rec.state !== "idle" ? "" : act !== null ? actValue(act)
                                       : focusOn ? mmss(focusLeft) : ""
-    readonly property bool rightBars: hasMedia && rec.state === "idle"
+    readonly property bool rightBars: hasMedia && rec.state === "idle" && satKind !== "media"
     readonly property int privW: privDots.length ? privDots.length * 11 - 4 : 0
     readonly property int slotW: {
         var parts = [rightBars ? 18 : 0, rightText !== "" ? 44 : 0, privW].filter(function (w) { return w > 0 })
@@ -325,19 +368,112 @@ Window {
     }
     readonly property int idleW: 32 + 2 * slotW + 20 + 46
 
+    // ---- Bölünmüş ada: ana adada sığmayan ikinci şey, ince bir boyunla ayrılan küçük daire olur
+    readonly property int satW: 34
+    readonly property int satH: 32
+    readonly property int satGap: 10
+    readonly property string satKind: {
+        if (settings.split_island === false) return ""
+        if (hasMedia && (rec.state !== "idle" || act !== null || focusOn)) return "media"
+        if (act !== null && live.items.length > 1) return "act2"
+        if (act !== null && focusOn) return "focus"
+        return ""
+    }
+    property string satLast: "media"       // daire kapanırken içeriği bir an daha göstermek için
+    onSatKindChanged: if (satKind !== "") satLast = satKind
+    // Geniş görünümlerde (panel, bildirim…) daire ana adaya geri katılır; kısa uyarılarda yanında kalır
+    readonly property bool satWant: satKind !== "" && !isHidden
+        && (mode === "idle" || mode === "volume" || mode === "charge" || mode === "alert" || mode === "toast")
+    property real satP: satWant ? 1 : 0
+    Behavior on satP { SpringAnimation { spring: 3.0; damping: 0.3; epsilon: 0.001 } }
+    readonly property bool satOnLeft: position === "right"
+    readonly property int satRoom: (satWant || Math.abs(satP) > 0.002) ? satW + satGap + ear : 0
+    readonly property int satSides: position === "center" ? 2 : 1       // pencerede kaç yanda yer ayrılsın
+
+    // ---- Uçan kapak: tek bir kapak nesnesi; kapalı ada, ayrılan daire, müzik görünümü ve panel
+    // arasında yaylanarak akar (her yerde ayrı bir kapak çizmek yerine).
+    readonly property string artHome: {
+        if (!hasMedia) return "none"
+        if (mode === "media") return "media"
+        if (mode === "panel") return tab === 0 && !lyricsOn && !pageMusic.outputs ? "panel" : "none"
+        if (satKind === "media" && satWant) return "sat"
+        if (mode === "idle" && leftSlot === "art") return "idle"
+        return "none"
+    }
+    property var artFrom: ({ x: 0, y: 0, w: 22, h: 22, r: 6 })
+    property real artT: 1
+    property string artLast: "none"
+    property bool flyBusy: false
+    function artAnchor(home) {
+        return home === "idle" ? idleArt : home === "sat" ? satArt : home === "media" ? mArt
+             : home === "panel" ? pageMusic.artAnchor : null
+    }
+    function artRect(home) {
+        var a = artAnchor(home)
+        if (!a || !a.width) return null
+        var p = a.mapToItem(notch, 0, 0), q = a.mapToItem(notch, a.width, a.height)
+        return { x: p.x, y: p.y, w: q.x - p.x, h: q.y - p.y, r: home === "media" ? 10 : home === "panel" ? 16 : 6 }
+    }
+    // Her karede: başlangıç ile hedef arasında artT oranında karışım (hedef hareket ederken de izlenir)
+    function syncArt() {
+        var to = artRect(artHome !== "none" ? artHome : artLast)
+        if (!to) return
+        var f = artFrom, t = artT
+        flyArt.x = f.x + (to.x - f.x) * t
+        flyArt.y = f.y + (to.y - f.y) * t
+        flyArt.width = Math.max(1, f.w + (to.w - f.w) * t)
+        flyArt.height = Math.max(1, f.h + (to.h - f.h) * t)
+        flyArt.radius = Math.max(0, f.r + (to.r - f.r) * t)
+    }
+    function flyKick() { flyBusy = true; flySettle.restart() }
+    onArtHomeChanged: {
+        if (artHome === "none") { flyKick(); return }
+        var to = artRect(artHome)
+        if (!to) return
+        artAnim.stop()
+        if (flyArt.opacity < 0.1) {            // yeni beliriyor: uçmadan yerine
+            artFrom = to
+            artT = 1
+        } else {                               // şu anki konumdan yeni yere uç
+            artFrom = { x: flyArt.x, y: flyArt.y, w: flyArt.width, h: flyArt.height, r: flyArt.radius }
+            artT = 0
+            artAnim.start()
+        }
+        artLast = artHome
+        flyKick()
+    }
+    onLyricsOnChanged: flyKick()
+    onSatPChanged: flyKick()
+    SpringAnimation { id: artAnim; target: root; property: "artT"; to: 1; spring: 3.4; damping: 0.34; epsilon: 0.0008 }
+    FrameAnimation { running: root.flyBusy; onTriggered: root.syncArt() }
+    Timer {
+        id: flySettle
+        interval: 1100
+        onTriggered: { if (artAnim.running) restart(); else { root.syncArt(); root.flyBusy = false } }
+    }
+    // açılışta müzik zaten çalıyorsa kapak ilk karede yerinde olsun
+    Timer {
+        interval: 900; running: true
+        onTriggered: { var to = root.artRect(root.artHome); if (to) { root.artFrom = to; root.artT = 1; root.artLast = root.artHome; root.syncArt() } }
+    }
+
     // Açık panel: geniş ve alçak. Başlık 40 + sayfa 162 + alt boşluk 14.
     readonly property real panelScale: 1
     readonly property int panelW: lyricsWant ? 760 : 600
     // Ayarlar çok satır içerir: o sekmede panel daha yüksek
-    readonly property int panelH: tab === 8 ? 372 : 224
+    // Maç sekmesi bölümüne göre uzar: kadro sahası ve fikstür satırları sıkışmasın
+    property int footballSection: 0
+    readonly property int panelH: tab === 10 ? 372 : tab === 8 ? 244 : tab === 9 ? [224, football.lineup ? 268 : 224, 286, 286][footballSection] || 224 : 224
 
     readonly property int islandW: {
         switch (mode) {
         case "panel": return panelW
         case "palette": return 640
+        case "quicklook": return 520
         case "drop": return 300
         case "toast": return Math.min(420, Math.max(260, toastMeasure.implicitWidth + 32 + 10 + 40))
         case "banner": return 440
+        case "shot": return 404
         case "media": return 400
         case "live": return 440
         case "volume": return 330
@@ -353,9 +489,11 @@ Window {
         // bir parlaklık satırı kadar uzar; çalmıyorken en uzun sayfanın (Sistem) sığdığı boy.
         case "panel": return panelH
         case "palette": return paletteView.wantH
+        case "quicklook": return quickView.wantH
         case "drop": return 56
         case "toast": return 52
         case "banner": return 64
+        case "shot": return 92
         case "media": return 84
         case "live": return 16 + Math.min(3, live.items.length) * 52
         case "volume": return 44
@@ -369,19 +507,54 @@ Window {
     // Pencere: büyürken anında (yay animasyonunun taşması için boşlukla), animasyon bitince
     // çentiğe sıkıca daralır; böylece altındaki uygulamaların tıklamasını engellemez.
     // Panel açıkken tüm ekranı kaplar (boş alana tıklayınca panel kapansın diye).
-    readonly property bool capture: (panelOpen || paletteOpen) && !draggingOut
-    readonly property int wantW: capture ? Screen.width : islandW + 2 * ear + 60
+    readonly property bool capture: (panelOpen || paletteOpen || quickOpen) && !draggingOut
+    readonly property int wantW: capture ? Screen.width : islandW + 2 * ear + 60 + satSides * satRoom
     readonly property int wantH: capture ? Screen.height : (isHidden ? 6 : islandH + 30)
-    readonly property int restW: capture ? Screen.width : islandW + 2 * ear
+    readonly property int restW: capture ? Screen.width : islandW + 2 * ear + satSides * satRoom
     readonly property int restH: capture ? Screen.height : (isHidden ? 6 : islandH + 2)
     width: 256
     height: 92
-    onWantWChanged: { if (wantW > width) width = wantW; shrinkTimer.restart() }
-    onWantHChanged: { if (wantH > height) height = wantH; shrinkTimer.restart() }
+    // Pencere boyutu değişirken Qt yüzeyin yeni boyutunu hemen bildirir ama yeni tampon bir kare sonra
+    // gelir: o sürede eski tampon (kapalı adanın saati, panelin kenarı) tüm ekrana gerilip çakar.
+    // Büyük boyut değişimlerinde (panel aç/kapa) içerik önce gizlenir, kare sunulunca boyut değişir,
+    // yeni tampon da sunulunca içerik geri gelir. Küçük değişimler (bildirim, hover) doğrudan uygulanır.
+    property bool sizeHide: false
+    property int sizeStage: 0           // 0 boşta, 1 gizleniyor, 2 boyut uygulandı
+    property int sizeFrames: 0
+    property int pendW: 0
+    property int pendH: 0
+    // contentItem'in opaklığı: hem çentik gövdesi hem ada içeriği (ayrı kardeşler) birlikte gizlenir
+    Binding { target: root.contentItem; property: "opacity"; value: root.sizeHide ? 0 : 1 }
+    function setSize(w, h) {
+        if (w === width && h === height) return
+        if (Math.abs(w - width) < 400 && Math.abs(h - height) < 200) {
+            width = w; height = h
+            return
+        }
+        pendW = w; pendH = h
+        if (sizeStage === 0) { sizeHide = true; sizeStage = 1; sizeFrames = 0 }
+        sizeGuard.restart()
+    }
+    function sizeDone() { kick.start(); sizeHide = false; sizeStage = 0; sizeGuard.stop() }
+    onFrameSwapped: {
+        if (sizeStage === 0) return
+        if (++sizeFrames < 2) return
+        sizeFrames = 0
+        if (sizeStage === 1) { width = pendW; height = pendH; sizeStage = 2 }
+        else sizeDone()
+    }
+    // Geçiş sürerken her karede yeniden çizim iste: gizli içerikle hiçbir şey kirlenmediği için kare gelmeyebilir
+    FrameAnimation { running: root.sizeStage !== 0; onTriggered: root.update() }
+    // yeniden gösterdikten sonra da bir süre kare iste (kare çağrısı geç kalırsa animasyonlar donmasın)
+    Timer { id: kick; interval: 16; repeat: true; property int n: 0; onTriggered: { root.update(); if (++n > 40) { stop(); n = 0 } } }
+    // Kare gelmezse takılı kalmasın
+    Timer { id: sizeGuard; interval: 250; onTriggered: { root.width = root.pendW; root.height = root.pendH; root.sizeDone() } }
+    onWantWChanged: { if (wantW > width) setSize(wantW, Math.max(height, wantH)); shrinkTimer.restart() }
+    onWantHChanged: { if (wantH > height) setSize(Math.max(width, wantW), wantH); shrinkTimer.restart() }
     Timer {
         id: shrinkTimer
         interval: 450
-        onTriggered: { root.width = root.restW; root.height = root.restH }
+        onTriggered: root.setSize(root.restW, root.restH)
     }
 
     // ------------------------------------------------------------------
@@ -480,7 +653,7 @@ Window {
         build: "run-build", download: "download", upload: "upload", timer: "isle-timer",
         test: "isle-tasks", deploy: "isle-send-symbolic", sync: "isle-update-symbolic",
         terminal: "isle-terminal-symbolic", music: "isle-music", mail: "mail-message",
-        check: "isle-check-symbolic", warning: "isle-warning-symbolic", info: "isle-info-symbolic"
+        football: "isle-football", check: "isle-check-symbolic", warning: "isle-warning-symbolic", info: "isle-info-symbolic"
     })
     function actIcon(name) {
         var n = actIcons[name || "info"] || name
@@ -501,6 +674,43 @@ Window {
     }
 
     function baseName(p) { return String(p).split("/").pop() }
+    function fmtDate(ms) {
+        var d = new Date(ms)
+        return Qt.formatDate(d, "dd.MM.yyyy") + " " + Qt.formatTime(d, "HH:mm")
+    }
+
+    // -- Hızlı Bakış
+    function openQuickLook(path) {
+        if (!path) return
+        quickPath = path
+        quickInfo = ({ name: baseName(path) })
+        quickOpen = true
+        sound("open")
+        fetchPreview(path)
+        quickFocus.restart()
+    }
+    function closeQuickLook() {
+        if (!quickOpen) return
+        quickOpen = false
+        sound("close")
+        if (paletteOpen) paletteRefocus.restart()
+    }
+    function fetchPreview(path) {
+        if (!token) token = readToken()
+        var x = new XMLHttpRequest()
+        x.open("GET", endpoint + "/preview?path=" + encodeURIComponent(path))
+        x.setRequestHeader("X-Island", token)
+        x.timeout = 15000
+        x.onreadystatechange = function () {
+            if (x.readyState !== XMLHttpRequest.DONE || quickPath !== path) return
+            try { quickInfo = x.status === 200 ? JSON.parse(x.responseText) : ({ error: "missing", name: baseName(path) }) }
+            catch (e) { quickInfo = ({ error: "missing", name: baseName(path) }) }
+        }
+        x.send()
+    }
+    Timer { id: quickFocus; interval: 40; onTriggered: quickView.focusMe() }
+    onModeChanged: glassPoke()
+    Timer { id: paletteRefocus; interval: 80; onTriggered: paletteView.refocus() }
 
     function flash(kind, ms) {
         flashKind = kind
@@ -597,12 +807,26 @@ Window {
         }
     }
 
+    // Arayüz sesi (Ayarlar → Genel → Arayüz sesleri açıksa; çalmayı arka uç yapar)
+    function sound(name) { if (settings.sounds) send("sound", name) }
+
+    // Doğrulama kodu: tek dokunuşla panoya (geçmişe eklenmez), kısa onay
+    function copyCode(code) {
+        sound("copy")
+        send("copy_text", code)
+        toast(t("Kod kopyalandı"), "dialog-ok-apply")
+    }
+    function prettyCode(c) {
+        return c.length === 6 && /^\d+$/.test(c) ? c.slice(0, 3) + " " + c.slice(3) : c
+    }
+
     function openFromBanner() {
         var k = banner.kind
         flashKind = ""
         if (k === "record") { send("open_recording"); return }
         if (k === "agent" || k === "activity") return
         // Bildirim: uygulamayı aç (varsa ilgili sohbet/e-posta); ada kapalı kalır
+        if (k === "notif" && banner.code) { copyCode(banner.code); return }
         if (k === "notif" && banner.id) { send("notif_open", banner.id); return }
         tab = k === "event" ? 3 : 1
         panelOpen = true
@@ -635,6 +859,9 @@ Window {
         if (s.docNew !== undefined) docNew = s.docNew
         if (s.rec !== undefined) rec = s.rec
         if (s.weather !== undefined) weather = s.weather
+        if (s.football !== undefined) football = s.football
+        if (s.wallpaper !== undefined) wallpaper = s.wallpaper
+        if (s.footballSearch !== undefined) footballSearch = s.footballSearch
         if (s.phone !== undefined) phone = s.phone
         if (s.focus !== undefined) { pomo = s.focus; focusNow = Date.now() }
         if (s.lyrics !== undefined) lyr = s.lyrics
@@ -671,8 +898,9 @@ Window {
                     markSeen()
                 } else if (!ui.dnd) {
                     var n = notifs.items[0]
-                    banner = { kind: "notif", id: n.id, icon: n.icon, app: n.app, title: n.title, body: n.body, ts: n.ts }
-                    flash("notif", 5500)
+                    banner = { kind: "notif", id: n.id, icon: n.icon, app: n.app, title: n.title, body: n.body, ts: n.ts,
+                               code: settings.otp_capture ? (n.code || "") : "" }
+                    flash("notif", banner.code ? 12000 : 5500)
                 }
             }
             recount()
@@ -682,15 +910,20 @@ Window {
 
         // Kısayol (Meta+Alt+I) ile panel aç/kapat
         if (s.panelReq !== undefined && s.panelReq !== o.panelReq) panelOpen = !panelOpen
+        if (s.quickReq !== undefined && s.quickReq.seq !== o.quickReq.seq) {
+            if (s.quickReq.path) openQuickLook(s.quickReq.path)
+            else closeQuickLook()
+        }
         if (s.paletteReq !== undefined && s.paletteReq.seq !== o.paletteReq.seq) {
             if (s.paletteReq.q) { paletteOpen = true; paletteView.prefill(s.paletteReq.q) }
             else paletteOpen = !paletteOpen
         }
         if (s.tabReq !== undefined && s.tabReq.seq !== o.tabReq.seq) {
-            tab = Math.max(0, Math.min(8, s.tabReq.tab))
+            tab = Math.max(0, Math.min(10, s.tabReq.tab))
             if (s.tabReq.lyrics !== undefined) lyricsOn = s.tabReq.lyrics
             if (s.tabReq.sub !== undefined) {
-                if (tab === 8) settingsSub = Math.max(0, Math.min(2, s.tabReq.sub))
+                if (tab === 10) settingsSub = Math.max(0, Math.min(4, s.tabReq.sub))
+                else if (tab === 9) footballSection = Math.max(0, Math.min(3, s.tabReq.sub))
                 else toolsSub = Math.max(0, Math.min(3, s.tabReq.sub))
             }
             panelOpen = true
@@ -705,6 +938,17 @@ Window {
             if (!panelOpen) flash("notif", 7000)
         }
 
+        // Yeni ekran görüntüsü: küçük önizleme (sürükle, aç, kopyala)
+        if (s.shot !== undefined) {
+            var prevShot = o.shot ? o.shot.seq : 0
+            shot = s.shot
+            if (s.shot.seq > 0 && s.shot.seq !== prevShot && settings.screenshot_preview && !fullscreen) {
+                shotInfo = s.shot
+                sound("shot")
+                flash("shot", 9000)
+            }
+        }
+
         // Canlı Etkinlik bitti / betikten bildirim
         if (s.activities !== undefined && o.activities !== undefined && s.activities.done.seq !== o.activities.done.seq) {
             var ad = s.activities.done
@@ -713,6 +957,9 @@ Window {
                            title: ad.title || "", body: ad.icon === "timer" && ad.state === "done"
                                ? root.t("Süre doldu · ") + ad.took : (ad.subtitle || ""), ts: Date.now() }
                 if (!panelOpen) flash("notif", ad.state === "failed" || ad.icon === "timer" ? 9000 : 6000)
+                // zamanlayıcı alarmını arka uç kendisi çalar (ayardan bağımsız)
+                if (ad.icon !== "timer" && !ui.dnd)
+                    sound(ad.state === "failed" ? "fail" : ad.state === "info" ? "notify" : "done")
             }
         }
 
@@ -763,10 +1010,11 @@ Window {
     }
 
     onPanelOpenChanged: {
+        sound(panelOpen ? "open" : "close")
         if (panelOpen && tab === 1) markSeen()
         if (!panelOpen) { panelAutoClose.stop(); deviceMenu = false }
     }
-    onTabChanged: { deviceMenu = false; if (panelOpen && tab === 1) markSeen() }
+    onTabChanged: { glassPoke(); deviceMenu = false; if (panelOpen && tab === 1) markSeen(); flyKick() }
     onUiChanged: if (ui.hidden) { panelOpen = false; hovered = false }
 
     // ------------------------------------------------------------------
@@ -878,8 +1126,8 @@ Window {
     // Panel açıkken pencere tüm ekranı kaplar; boş alana tık paneli kapatır
     MouseArea {
         anchors.fill: parent
-        enabled: root.panelOpen || root.paletteOpen
-        onClicked: { root.panelOpen = false; root.paletteOpen = false }
+        enabled: root.panelOpen || root.paletteOpen || root.quickOpen
+        onClicked: { if (root.quickOpen) root.closeQuickLook(); else { root.panelOpen = false; root.paletteOpen = false } }
     }
 
     // Çentik: ekranın üst kenarına yapışık siyah gövde + iki yanda içbükey "kulaklar".
@@ -907,7 +1155,9 @@ Window {
                 readonly property real h: island.height
                 readonly property real r: Math.max(1, Math.min(root.mode === "panel" ? 36 : 28, h / 2, w / 2))
 
-                fillColor: "#000000"
+                // sıvı camda gövdeyi cam levha çizer; siyah kulaklar kalmasın
+                // siyah gövde, cam levha tam opak olunca kalkar; kapanırken hemen geri gelir (arkadan masaüstü sızmasın)
+                fillColor: root.glassBody && glassSlab.opacity >= 1 ? "transparent" : "#000000"
                 strokeWidth: -1
 
                 startX: 0; startY: 0
@@ -981,9 +1231,46 @@ Window {
         color: "transparent"
         clip: true
 
+        onWidthChanged: root.glassPoke()
+        onHeightChanged: root.glassPoke()
         Behavior on width { SpringAnimation { spring: 3.4; damping: 0.3; epsilon: 0.3 } }
         Behavior on height { SpringAnimation { spring: 3.4; damping: root.mode === "panel" ? 0.36 : 0.3; epsilon: 0.3 } }
 
+        // Sıvı camın "içerik katmanı": cam yüzeyler bu katmanın dokusunu kırar
+        GlassBackdrop {
+            id: glassBackdrop
+            anchors.fill: parent
+            // kaynak yalnızca canlıyken gizlenir; cam levha görünürken canlı kalmalı, yoksa kare köşeli içerik sızar
+            live: root.glassy && glassSlab.visible && (root.glassMoving || (root.playing && root.ambient))
+            mat: root.glassMat
+            blurAmount: 0.6 + root.glassFrost * 0.4
+            pointerPos: islandHover.point.position
+            pointerAmount: islandHover.hovered ? 1 : 0
+            Behavior on pointerAmount { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
+            Rectangle {
+                anchors.fill: parent
+                color: "#0c0c10"
+                visible: glassSlab.visible
+            }
+            Image {   // masaüstü duvar kağıdı: ada ekranın üst ortasında, arkasındaki bölge camda kırılır
+                visible: glassSlab.visible && root.wallpaper !== ""
+                source: root.wallpaper
+                asynchronous: true
+                sourceSize: Qt.size(480, 270)
+                fillMode: Image.PreserveAspectCrop
+                width: Screen.width; height: Screen.height
+                x: (island.width - Screen.width) / 2; y: 0
+                opacity: 0.55
+            }
+            Rectangle {
+                anchors.fill: parent
+                visible: glassSlab.visible
+                gradient: Gradient {
+                    GradientStop { position: 0; color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.26) }
+                    GradientStop { position: 0.55; color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.06) }
+                    GradientStop { position: 1; color: Qt.rgba(1, 1, 1, 0.05) }
+                }
+            }
         Ambient {
             anchors.fill: parent
             visible: root.ambient
@@ -992,17 +1279,35 @@ Window {
             radius: outline.r
             vivid: root.vivid
             glow: !root.ambient ? 0
-                : root.mode === "panel" ? (root.hasMedia && root.tab === 0 ? (root.vivid ? 1 : 0.9) : (root.vivid ? 0.55 : 0.5))
+                // panelde albüm ışığı yalnızca Müzik sekmesinde; öbür sekmeler (Bildirim, Takvim…) düz kalır
+                : root.mode === "panel" ? (root.hasMedia && root.tab === 0 ? (root.vivid ? 1 : 0.9) : 0)
                 : root.mode === "media" ? (root.vivid ? 0.9 : 0.8)
                 : 0
             // kapalı adada hafif, açık görünümlerde daha belirgin
             bass: root.ambient && root.playing ? root.bass * (root.mode === "idle" ? 0.85 : 0.6) : 0
         }
+        }
+
+        // Ada gövdesi: tek cam levha. Üstünde kart/kontrol camı olduğundan ince sürüm (cam üstüne cam yok)
+        GlassSurface {
+            id: glassSlab
+            anchors.fill: parent
+            visible: opacity > 0
+            opacity: root.glassBody ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 140 } }
+            glassLayer: glassBackdrop
+            tick: island.width + island.height
+            thin: true
+            radiusTL: 0; radiusTR: 0; radiusBL: outline.r; radiusBR: outline.r
+            frostAmount: root.glassFrost
+            tintAmount: 0.05
+            bezelPx: 14
+        }
 
         // Geçici görünümlerde (bildirim, toast, uyarı) kalan süreyi gösteren ince çizgi: ortaya doğru eriyip biter
         Rectangle {
             id: flashBar
-            visible: width > 0 && (root.mode === "banner" || root.mode === "toast" || root.mode === "alert")
+            visible: width > 0 && (root.mode === "banner" || root.mode === "toast" || root.mode === "alert" || root.mode === "shot")
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 4
@@ -1031,9 +1336,17 @@ Window {
             }
         }
 
+        TapHandler {
+            acceptedButtons: Qt.LeftButton
+            gesturePolicy: TapHandler.ReleaseWithinBounds
+            onTapped: eventPoint => { if (root.glassy) { root.glassPoke(); glassBackdrop.ripple(eventPoint.position.x, eventPoint.position.y) } }
+        }
+
         HoverHandler {
+            id: islandHover
+            onPointChanged: root.glassPoke()
             onHoveredChanged: {
-                var hold = root.flashKind === "notif" || root.flashKind === "event"
+                var hold = root.flashKind === "notif" || root.flashKind === "event" || root.flashKind === "shot"
                 if (hovered) {
                     hoverOff.stop()
                     peekOff.stop()
@@ -1075,6 +1388,12 @@ Window {
             }
         }
 
+        // panelde kaydırma da camı canlandırır (kartlar yer değiştirir); olayı engellemez
+        WheelHandler {
+            blocking: false
+            onWheel: root.glassPoke()
+        }
+
         // Tekerlek: ses ayarı (panelde listeler kaydırılır)
         WheelHandler {
             property real acc: 0
@@ -1097,6 +1416,8 @@ Window {
             on: root.mode === "idle"
             width: root.idleW
             height: 32
+
+            HoverHandler { id: idleHover }
 
             // Sol yuva
             Item {
@@ -1123,11 +1444,10 @@ Window {
                     color: root.actColor(root.act)
                     live: idleView.on
                 }
-                ArtImage {    // çalan şarkının kapağı
-                    visible: root.leftSlot === "art"
+                Item {        // çalan şarkının kapağının yeri (kapağı flyArt çizer)
+                    id: idleArt
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 22; height: 22; radius: 6
-                    source: root.media.artUrl || ""
+                    width: 22; height: 22
                 }
                 Shape {       // odak halkası
                     visible: root.leftSlot === "ring"
@@ -1245,7 +1565,8 @@ Window {
                     : root.banner.state === "cancelled" ? "#3a3a3c"
                     : root.banner.state === "done" ? (root.banner.icon === "timer" ? "#ff9f0a" : "#30d158")
                     : (root.banner.color || Qt.rgba(1, 1, 1, 0.17))
-                title: bannerView.isEvent
+                title: !!root.banner.code ? root.t("Doğrulama kodu") + " · " + (root.banner.app || "")
+                    : bannerView.isEvent
                     ? (root.banner.title || "") + (function () {
                           var m = Math.round((root.banner.start - root.nowMs) / 60000)
                           return m >= 1 ? root.t(" · %1 dk sonra").arg(m) : root.t(" · şimdi")
@@ -1257,6 +1578,28 @@ Window {
                          : root.banner.location ? " · " + root.banner.location : "")
                     : (root.banner.body ? String(root.banner.body).replace(/\s+/g, " ") : (root.banner.app || ""))
 
+                Rectangle {   // doğrulama kodu: büyük, dokununca kopyalanır
+                    visible: !!root.banner.code
+                    width: codeText.implicitWidth + 24; height: 34; radius: 17
+                    color: codeMa.pressed ? Qt.rgba(1, 1, 1, 0.30) : Qt.rgba(1, 1, 1, 0.16)
+                    Text {
+                        id: codeText
+                        renderType: Text.CurveRendering
+                        font.family: "Inter"
+                        anchors.centerIn: parent
+                        text: root.prettyCode(root.banner.code || "")
+                        color: "white"
+                        font.pixelSize: 19
+                        font.weight: Font.DemiBold
+                        font.letterSpacing: 1
+                        font.features: { "tnum": 1 }
+                    }
+                    MouseArea {
+                        id: codeMa
+                        anchors.fill: parent
+                        onClicked: root.copyCode(root.banner.code)
+                    }
+                }
                 Rectangle {
                     visible: bannerView.isEvent && !!root.banner.url
                     width: 58; height: 30; radius: 15
@@ -1283,6 +1626,20 @@ Window {
                 x: 18 + 5; y: (parent.height - 22) / 2
                 size: 22
                 source: root.banner.icon || "notifications"
+            }
+        }
+
+        // ==============================================================
+        // HIZLI BAKIŞ (dosya önizlemesi)
+        // ==============================================================
+        View {
+            id: quickHost
+            on: root.mode === "quicklook"
+            width: 520; height: quickView.wantH
+            QuickLook {
+                id: quickView
+                anchors.fill: parent
+                sh: root
             }
         }
 
@@ -1391,6 +1748,119 @@ Window {
         }
 
         // ==============================================================
+        // EKRAN GÖRÜNTÜSÜ ÖNİZLEMESİ: küçük resim sürüklenebilir; Aç, Kopyala
+        // ==============================================================
+        View {
+            id: shotView
+            on: root.mode === "shot"
+            width: 404; height: 92
+
+            Item {
+                id: shotThumb
+                x: 16; y: 14
+                width: 104; height: 64
+                scale: shotMa.pressed ? 0.95 : 1
+                Behavior on scale { NumberAnimation { duration: 100 } }
+
+                Drag.active: shotMa.drag.active
+                Drag.dragType: Drag.Automatic
+                Drag.supportedActions: Qt.CopyAction
+                Drag.mimeData: ({ "text/uri-list": (root.shotInfo.url || "") + "\r\n" })
+                Drag.onActiveChanged: root.draggingOut = Drag.active
+                Item { id: shotProxy; width: 1; height: 1 }
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 10
+                    color: Qt.rgba(1, 1, 1, 0.08)
+                    clip: true
+                    Image {
+                        anchors.fill: parent
+                        source: root.mode === "shot" ? (root.shotInfo.url || "") : ""
+                        fillMode: Image.PreserveAspectCrop
+                        asynchronous: true
+                        sourceSize: Qt.size(312, 192)
+                    }
+                }
+                Rectangle {   // ince çerçeve
+                    anchors.fill: parent
+                    radius: 10
+                    color: "transparent"
+                    border.width: 1
+                    border.color: Qt.rgba(1, 1, 1, 0.16)
+                }
+                MouseArea {
+                    id: shotMa
+                    anchors.fill: parent
+                    drag.target: shotProxy
+                    cursorShape: Qt.OpenHandCursor
+                    onClicked: { root.send("shot_open"); root.flashKind = "" }
+                }
+            }
+            Column {
+                anchors.left: shotThumb.right
+                anchors.leftMargin: 14
+                anchors.right: parent.right
+                anchors.rightMargin: 16
+                anchors.verticalCenter: shotThumb.verticalCenter
+                spacing: 2
+                Text {
+                    renderType: Text.CurveRendering
+                    font.family: "Inter"
+                    width: parent.width
+                    text: root.t("Ekran görüntüsü alındı")
+                    color: "white"
+                    font.pixelSize: 14
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                }
+                Text {
+                    renderType: Text.CurveRendering
+                    font.family: "Inter"
+                    width: parent.width
+                    text: (root.shotInfo.w > 0 ? root.shotInfo.w + " × " + root.shotInfo.h + " · " : "") + (root.shotInfo.name || "")
+                    color: Qt.rgba(1, 1, 1, 0.5)
+                    font.pixelSize: 11
+                    elide: Text.ElideMiddle
+                }
+                Row {
+                    spacing: 8
+                    topPadding: 6
+                    Repeater {
+                        model: [{ k: "open", l: root.t("Aç") }, { k: "copy", l: root.t("Kopyala") }]
+                        Rectangle {
+                            required property var modelData
+                            readonly property bool primary: modelData.k === "open"
+                            width: shotBtnText.implicitWidth + 24; height: 26; radius: 13
+                            color: primary ? (shotBtnMa.pressed ? "#d1d1d6" : "white")
+                                           : (shotBtnMa.pressed ? Qt.rgba(1, 1, 1, 0.30) : Qt.rgba(1, 1, 1, shotBtnMa.containsMouse ? 0.22 : 0.15))
+                            Text {
+                                id: shotBtnText
+                                renderType: Text.CurveRendering
+                                font.family: "Inter"
+                                anchors.centerIn: parent
+                                text: modelData.l
+                                color: parent.primary ? "black" : "white"
+                                font.pixelSize: 12
+                                font.weight: Font.DemiBold
+                            }
+                            MouseArea {
+                                id: shotBtnMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: {
+                                    if (modelData.k === "open") root.send("shot_open")
+                                    else { root.send("shot_copy"); root.sound("copy"); root.toast(root.t("Görüntü kopyalandı"), "dialog-ok-apply") }
+                                    if (modelData.k === "open") root.flashKind = ""
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==============================================================
         // MEDYA (fare üstünde / parça değişince)
         // ==============================================================
         View {
@@ -1407,12 +1877,10 @@ Window {
                 gap: 2
                 levels: root.spectrum
             }
-            ArtImage {
+            Item {
                 id: mArt
                 x: 18; y: 12
-                width: 44; height: 44; radius: 10
-                source: root.media.artUrl || ""
-                MouseArea { anchors.fill: parent; onClicked: root.send("raise") }
+                width: 44; height: 44
             }
             Column {
                 anchors.left: mArt.right
@@ -1466,6 +1934,7 @@ Window {
                 }
             }
             IslandSlider {
+                sh: root
                 x: 18; y: 64
                 width: parent.width - 36
                 height: 10
@@ -1496,6 +1965,7 @@ Window {
                 tint: root.volume.muted ? "#ff453a" : "white"
             }
             IslandSlider {
+                sh: root
                 x: 52
                 width: parent.width - 52 - 64
                 height: 24
@@ -1852,10 +2322,10 @@ Window {
                         Layout.preferredHeight: 28
                         icon: root.ic("isle-settings")
                         iconSize: 15
-                        tint: root.tab === 8 ? "white" : Qt.rgba(1, 1, 1, 0.6)
-                        filled: root.tab === 8
+                        tint: root.tab === 10 ? "white" : Qt.rgba(1, 1, 1, 0.6)
+                        filled: root.tab === 10
                         fillColor: Qt.rgba(1, 1, 1, 0.12)
-                        onClicked: root.tab = root.tab === 8 ? root.tabOrder[0] : 8
+                        onClicked: root.tab = root.tab === 10 ? root.tabOrder[0] : 10
                     }
                     CtlButton {
                         Layout.preferredWidth: 28
@@ -1889,7 +2359,7 @@ Window {
                         index: 0
                         current: root.tab
                         order: root.tabOrder
-                        PageMusic { anchors.fill: parent; sh: root }
+                        PageMusic { id: pageMusic; anchors.fill: parent; sh: root }
                     }
                     PageFade {
                         anchors.fill: parent
@@ -1943,6 +2413,20 @@ Window {
                     PageFade {
                         anchors.fill: parent
                         index: 8
+                        current: root.tab
+                        order: root.tabOrder
+                        PageWeather { anchors.fill: parent; sh: root }
+                    }
+                    PageFade {
+                        anchors.fill: parent
+                        index: 9
+                        current: root.tab
+                        order: root.tabOrder
+                        PageFootball { anchors.fill: parent; sh: root }
+                    }
+                    PageFade {
+                        anchors.fill: parent
+                        index: 10
                         current: root.tab
                         order: root.tabOrder
                         PageSettings { anchors.fill: parent; sh: root }
@@ -2019,6 +2503,121 @@ Window {
                     }
                 }
             }
+        }
+    }
+
+    // ---- Boyun: ayrılırken/birleşirken iki gövdeyi bir damla gibi bağlar, uzadıkça incelip kopar
+    Shape {
+        id: neck
+        readonly property real aR: root.satOnLeft ? sat.edge + root.satW : root.ear + island.width   // soldaki gövdenin sağ kenarı
+        readonly property real bL: root.satOnLeft ? root.ear : sat.edge                              // sağdaki gövdenin sol kenarı
+        readonly property real d: bL - aR
+        readonly property real yEnd: root.satH * 0.8
+        readonly property real yMid: yEnd * Math.max(0, Math.min(1, 1 - d / 7))
+        visible: d > -4 && d < 7 && yMid > 0.4 && Math.abs(root.satP) > 0.003
+        preferredRendererType: Shape.CurveRenderer
+        ShapePath {
+            fillColor: "#000000"
+            strokeWidth: -1
+            startX: neck.aR - 6; startY: 0
+            PathLine { x: neck.bL + 6; y: 0 }
+            PathLine { x: neck.bL + 6; y: neck.yEnd }
+            PathQuad { x: neck.aR - 6; y: neck.yEnd; controlX: (neck.aR + neck.bL) / 2; controlY: 2 * neck.yMid - neck.yEnd }
+            PathLine { x: neck.aR - 6; y: 0 }
+        }
+    }
+
+    // ---- Ayrılan küçük ada (aynı çentik biçimi, küçük): kapak ya da ikinci etkinlik/odak halkası
+    Item {
+        id: sat
+        // gövdenin sol kenarı (notch koordinatı): birleşikken ana adanın içinde, ayrılınca yanında
+        readonly property real edge: root.satOnLeft ? root.ear - (root.satW + root.satGap) * root.satP
+                                                    : root.ear + island.width - root.satW + (root.satW + root.satGap) * root.satP
+        readonly property real vis: Math.max(0, Math.min(1, root.satP))
+        x: edge - root.ear
+        y: 0
+        width: root.satW + 2 * root.ear
+        height: root.satH
+        visible: Math.abs(root.satP) > 0.003
+
+        Shape {
+            anchors.fill: parent
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                id: so
+                readonly property real e: root.ear
+                readonly property real w: root.satW
+                readonly property real h: root.satH
+                readonly property real r: Math.min(h / 2, w / 2)
+                fillColor: "#000000"
+                strokeWidth: -1
+                startX: 0; startY: 0
+                PathLine { x: 2 * so.e + so.w; y: 0 }
+                PathArc { x: so.e + so.w; y: so.e; radiusX: so.e; radiusY: so.e; direction: PathArc.Counterclockwise }
+                PathLine { x: so.e + so.w; y: so.h - so.r }
+                PathArc { x: so.e + so.w - so.r; y: so.h; radiusX: so.r; radiusY: so.r; direction: PathArc.Clockwise }
+                PathLine { x: so.e + so.r; y: so.h }
+                PathArc { x: so.e; y: so.h - so.r; radiusX: so.r; radiusY: so.r; direction: PathArc.Clockwise }
+                PathLine { x: so.e; y: so.e }
+                PathArc { x: 0; y: 0; radiusX: so.e; radiusY: so.e; direction: PathArc.Counterclockwise }
+            }
+        }
+        // ince kenar ışığı (ana adayla uyumlu)
+        Item {
+            x: root.ear; width: root.satW; height: root.satH
+            opacity: sat.vis
+            Item {   // kapak yeri
+                id: satArt
+                visible: root.satLast === "media"
+                anchors.centerIn: parent
+                anchors.verticalCenterOffset: -1
+                width: 22; height: 22
+            }
+            ActRing {
+                visible: root.satLast === "act2"
+                anchors.centerIn: parent
+                anchors.verticalCenterOffset: -1
+                width: 20; height: 20
+                property var a2: root.live.items.length > 1 ? root.live.items[root.live.items.length - 2] : null
+                frac: root.actFrac(a2)
+                color: root.actColor(a2)
+                live: sat.visible
+            }
+            ActRing {
+                visible: root.satLast === "focus"
+                anchors.centerIn: parent
+                anchors.verticalCenterOffset: -1
+                width: 20; height: 20
+                frac: root.focusFrac
+                color: root.focusColor
+                live: sat.visible
+            }
+        }
+        MouseArea {
+            x: root.ear; width: root.satW; height: root.satH
+            enabled: root.satP > 0.6
+            cursorShape: Qt.PointingHandCursor
+            onClicked: {
+                if (root.satLast === "media") root.tab = 0
+                else if (root.satLast === "focus") root.tab = 2
+                root.panelOpen = true
+            }
+        }
+    }
+
+    // ---- Uçan kapak: ada, ayrılan daire, müzik görünümü ve panel arasında akan tek kapak
+    ArtImage {
+        id: flyArt
+        z: 60
+        width: 22; height: 22; radius: 6
+        opacity: root.artHome === "none" ? 0 : 1
+        visible: opacity > 0.01
+        Behavior on opacity { NumberAnimation { duration: 180 } }
+        source: root.hasMedia ? (root.media.artUrl || "") : ""
+        MouseArea {
+            anchors.fill: parent
+            enabled: root.artHome === "media" || root.artHome === "panel"
+            onClicked: root.send("raise")
         }
     }
     }

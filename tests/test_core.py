@@ -74,6 +74,12 @@ class ConfigTest(unittest.TestCase):
 
 
 class LayoutTest(unittest.TestCase):
+    def test_glass_material(self):
+        l = config.clean_layout({"material": "glass", "glass": "clear"})
+        self.assertEqual((l["material"], l["glass"]), ("glass", "clear"))
+        l = config.clean_layout({"material": "glass", "glass": "x"})
+        self.assertEqual(l["glass"], "balanced")
+
     def test_clean_layout(self):
         got = config.clean_layout({"tabs": ["tools", "music", "bogus", "music"], "hidden": list(config.TABS),
                                    "open": "sideways", "position": "left", "accent": "#FF375F"})
@@ -85,7 +91,7 @@ class LayoutTest(unittest.TestCase):
     def test_bad_values_fall_back(self):
         got = config.clean_layout({"position": "top", "accent": "red; x"})
         self.assertEqual((got["position"], got["accent"]), ("center", "auto"))
-        self.assertEqual(config.clean_layout(None)["tabs"], list(config.TABS))
+        self.assertEqual(config.clean_layout(None)["tabs"], list(config.DEFAULT_ORDER))
 
 
 class I18nTest(unittest.TestCase):

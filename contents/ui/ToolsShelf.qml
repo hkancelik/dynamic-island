@@ -82,6 +82,9 @@ Item {
                 Drag.supportedActions: Qt.CopyAction
                 Drag.mimeData: ({ "text/uri-list": modelData.url + "\r\n" })
                 Drag.onActiveChanged: sh.draggingOut = Drag.active
+                // Boşluk tuşu (ana pencerede) bu öğenin Hızlı Bakış'ını açar
+                readonly property bool hot: dragMa.containsMouse
+                onHotChanged: { if (hot) sh.shelfHover = modelData.path; else if (sh.shelfHover === modelData.path) sh.shelfHover = "" }
 
                 Item { id: dragProxy; width: 1; height: 1 }
 

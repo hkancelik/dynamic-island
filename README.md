@@ -78,6 +78,19 @@ Built-in icons: `build` `download` `upload` `timer` `test` `deploy` `sync` `term
 `warning`, or any freedesktop icon name. The token file is readable only by you, and the server listens on
 `127.0.0.1` only and refuses browser requests.
 
+## Match day
+Follow a football team from the **Match** tab (Liverpool by default; pick any team in *Settings → Match*): live score and minute,
+the starting eleven drawn on a pitch with the formation and substitutes, next fixtures and recent results across the
+league and the European cups. When the team sheet is published the island announces it, during the game a Live
+Activity shows the score and minute on the closed island, and goals pop up as short notifications. Data comes from
+ESPN's public endpoints (no key); nothing is stored.
+
+<p align="center">
+  <img src="docs/screenshots/football.png" alt="The Match tab: next fixture" width="480"><br>
+  <img src="docs/screenshots/football-fixtures.png" alt="Fixtures and recent results with Home/Away badges" width="480"><br>
+  <img src="docs/screenshots/football-table.png" alt="League table with the team highlighted" width="480">
+</p>
+
 ## Command palette
 
 Press **Meta+Alt+Space** (or run `island palette`) and the island becomes a search field: everything
@@ -107,13 +120,57 @@ Prefer it on Alt+Space? Move KRunner to Alt+F2 in System Settings → Shortcuts 
   <img src="docs/screenshots/palette.png" alt="Command palette" width="640">
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/weather.png" alt="The Weather tab" width="640">
+</p>
+
+## Small touches
+
+<p align="center">
+  <img src="docs/screenshots/split.png" alt="The island split in two: a timer and the album cover" width="330">
+</p>
+
+- **The island splits in two.** Start a timer while music plays and a bubble separates from the island like
+  a droplet (a thin neck pinches off, then the album cover glides into it). When the second thing ends, it
+  melts back. It also splits for two activities, or a focus timer plus an activity.
+- **One cover, always.** The album cover is a single object that flows between the closed island, the split
+  bubble, the hover view and the music page, sprung and scaled, instead of being redrawn in each place.
+- **Verification codes.** A notification that carries a code (an SMS from your phone via KDE Connect, an
+  email, a 2FA app) shows it large on the island; tap to copy. It only looks near words like *code*, *OTP*,
+  *PIN*, *doğrulama*, so "2500 TL deposited" is never mistaken for one.
+- **Screenshot preview.** Take a screenshot and a small preview appears: drag it into any app, **Open** it
+  or **Copy** the image. Works with Spectacle out of the box; other tools via `screenshot_dirs` in the config.
+- **Quick Look.** Preview a file without opening an app: images, the first page of a PDF, a frame of a
+  video, text and code, audio with its cover art, folders. `Ctrl+Y` on a file in the command palette,
+  `Space` while hovering a file on the shelf, or `island quicklook FILE` from anywhere (`island quicklook`
+  alone closes it).
+- **Interface sounds** (opt-in, Settings → Features). Soft sounds synthesised in code, no sound files in the
+  repo: a tap when the panel opens, a chime when a job finishes, a low note when it fails, a shutter for
+  screenshots. The timer alarm always rings.
+
+<p align="center">
+  <img src="docs/screenshots/verification-code.png" alt="A verification code on the island" width="480"><br>
+  <img src="docs/screenshots/screenshot-preview.png" alt="Screenshot preview with Open and Copy" width="480"><br>
+  <img src="docs/screenshots/quicklook-image.png" alt="Quick Look of an image" width="520"><br>
+  <img src="docs/screenshots/quicklook-text.png" alt="Quick Look of a text file" width="520">
+</p>
+
 ## Designed to disappear
 
-Three materials in **Settings → Appearance**:
+Four materials in **Settings → Appearance**:
 
 - **Minimal** (default): deep black with a whisper of the album's colour, a hairline rim light and
   frosted-glass cards. Quiet depth instead of decoration.
-- **Ambient**: the album artwork floods the panel; light breathes with the music in your accent colour.
+- **Ambient**: the album artwork floods the Music tab; light breathes with the music in your accent colour.
+  The other tabs stay clean.
+- **Liquid Glass**: the island becomes one slab of glass. Controls are real lenses (a refraction shader based on
+  Snell's law bends what is behind them), with frost, specular rim light and a Frosted / Balanced / Clear preset.
+  Research and design rules: [docs/liquid-glass.md](docs/liquid-glass.md). The glass reacts to you: rim light
+  turns toward the cursor, a click sends a water ripple that bends what is behind it, your wallpaper is
+  refracted inside the slab, and the material condenses (frosted to clear) as the panel opens. It only redraws
+  while something moves, so an open panel idles at a few percent CPU. The command palette is glass too.
+
+<p align="center"><img src="docs/screenshots/liquid-glass.png" alt="Music in the Liquid Glass material" width="640"></p>
 - **Classic black**: a plain notch.
 
 The music bars are **real**: a pure-Python FFT of what your speakers are playing, analysed in memory
@@ -145,6 +202,11 @@ artwork, or fixed.
   <img src="docs/screenshots/system.png" alt="System panel" width="640">
 </p>
 
+- **Lyrics that actually get found.** Titles are cleaned before searching (`- Remastered 2011`, `(feat. X)`,
+  `[Official Video]`, `- Topic` channels, YouTube's "Artist - Title"), results are scored on title, artist
+  and duration so a different song with the same name is never picked, and a busy server is worked around
+  instead of giving up. A `song.lrc` next to a local file is used offline. When nothing is found, type
+  "artist song" in the box under the lyrics and the result is remembered for that track.
 - **Music:** any MPRIS player, artwork-tinted accent colour, seek bar, output device picker,
   **synced lyrics** ([LRCLIB](https://lrclib.net)) — tap a line to jump there
 - **Notifications:** Plasma notifications land on the island. Tap one and the app opens **straight to that
@@ -155,7 +217,11 @@ artwork, or fixed.
   ("Dinner 20:00"), meeting alerts 5 minutes before with a **Join** button (Meet, Zoom, Teams, Webex…)
 - **Focus timer (Pomodoro)** with a ring on the closed island and automatic Do Not Disturb
 - **Controls:** volume, per-monitor brightness (DDC/CI), Night Light, Wi-Fi, Bluetooth, power profile
-- **System:** CPU, memory, network, temperature/fan, battery health, weather (Open-Meteo, no key),
+- **Weather** has its own tab: current conditions, the next nine hours (with rain chances), a five-day
+  outlook and a "rain in 4 h" heads-up, from Open-Meteo (no API key; kept in memory only). Set the place in
+  `config.json` as `"weather": {"city": "Berlin"}`, otherwise it is guessed from your IP address. The icons
+  are drawn for the project, not taken from your icon theme.
+- **System:** CPU, memory, network, temperature/fan, battery health,
   your phone's battery via KDE Connect, incoming call alerts
 - **Privacy dots:** camera (green), microphone (orange), screen sharing (blue)
 - **Alerts:** Caps Lock, Bluetooth devices with battery level, internet lost/back, charging, low battery
@@ -197,6 +263,7 @@ Run it without installing: `./launch.sh` (stop with `./stop.sh`).
 ```bash
 island panel | toggle | hide | show | dnd | record | play-pause | next | prev | focus
 island tab calendar          # open the panel on a tab (music, notifications, focus, calendar, …)
+island quicklook report.pdf  # preview a file on the island; `island quicklook` closes it
 ```
 
 Settings live in `~/.config/dynamic-island/config.json` (the gear icon on the island toggles most of them).
@@ -230,10 +297,12 @@ Settings live in `~/.config/dynamic-island/config.json` (the gear icon on the is
 
 - `backend.py`: event-driven state server; only changed keys are sent to the UI
 - `activities.py` + `island`: Live Activities and the command-line tool (no dependencies)
+- `palette.py` + `runners.py`: command palette search; `preview.py`: Quick Look; `shots.py`: screenshot
+  watcher (Gio file monitor, no polling); `otp.py`: verification codes; `sounds.py`: synthesised sounds
 - `contents/ui/`: the island and panel (`main.qml`), pages (`Page*.qml`), translations (`lang_en.js`)
 - `i18n.py`: translations for the backend and CLI
 - `tests/`: `python -m unittest discover -s tests -t .` and `qmltestrunner -input tests/qml`
-  (drag-to-reorder, with simulated mouse input)
+  (drag-to-reorder and keyboard handling, with simulated input)
 
 Want another language? Copy `contents/ui/lang_en.js` to `lang_xx.js`, translate the values, and add it
 to `dicts` in `main.qml`. See [CONTRIBUTING.md](CONTRIBUTING.md).

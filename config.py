@@ -31,7 +31,9 @@ def private_open(path, mode="w"):
     return os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), mode)
 
 # Paneldeki sekmeler (arayüzdeki sayfa numarası = bu listedeki sıra)
-TABS = ("music", "notifications", "focus", "calendar", "controls", "apps", "system", "tools")
+TABS = ("music", "notifications", "focus", "calendar", "controls", "apps", "system", "tools", "weather", "football")
+# Ekrandaki varsayılan sıra (sayfa numaralarından ayrı): Hava, Sistem'in yanında
+DEFAULT_ORDER = ("music", "notifications", "focus", "calendar", "controls", "apps", "system", "weather", "football", "tools")
 
 DEFAULTS = {
     # Google Takvim → Ayarlar → takvimi seç → "iCal biçimindeki gizli adres"
@@ -63,21 +65,36 @@ DEFAULTS = {
     "meeting_alerts": True,
     # Müzik çubukları gerçek sese göre (hoparlöre giden ses yalnızca bellekte çözümlenir)
     "spectrum": True,
+    # Arayüz sesleri (yumuşak, sentezlenmiş); zamanlayıcı alarmı her zaman çalar
+    "sounds": False,
+    "sound_volume": 0.45,
+    # İkinci bir şey olunca (ör. müzik + zamanlayıcı) ada ikiye bölünür, küçük bir daire ayrılır
+    "split_island": True,
+    # Ekran görüntüsü alınınca küçük önizleme: sürükleyip bırak, aç, kopyala
+    "screenshot_preview": True,
+    # Spectacle dışındaki araçların kayıt klasörleri de izlensin (ör. ["~/Resimler/Flameshot"])
+    "screenshot_dirs": [],
+    # Bildirimdeki doğrulama kodlarını adada büyük göster, dokununca kopyala
+    "otp_capture": True,
     # Kamera / mikrofon / ekran paylaşımı noktaları
     "privacy_dots": True,
     # Hava durumu (Open-Meteo). Konum: {"city": "İstanbul"} ya da {"lat": 41.0, "lon": 29.0, "name": "Ev"};
     # boşsa IP adresinden yaklaşık konum bulunur.
     "weather_enabled": True,
     "weather": {"city": ""},
+    # Maç takibi (ESPN, anahtarsız): takım, kadro açıklanınca bildirim, maç sırasında Canlı Etkinlik
+    "football_enabled": True,
+    "football": {"team": {"id": "364", "name": "Liverpool", "league": "eng.1"}},
     # Telefon (KDE Connect): pil, gelen arama, telefonu çaldır
     "phone": True,
     # Panel düzeni ve görünüm (adanın Ayarlar → Sekmeler / Görünüm bölümünden değişir)
     #   tabs: sekme sırası, hidden: gizli sekmeler, open: "last" (son sekme) | "first" (ilk sekme)
     #   position: "center" | "left" | "right", accent: "auto" (albüm kapağından) | "#rrggbb"
     #   material: "minimal" (sade derinlik: kısık albüm ışığı, nötr kenar ışığı) | "ambient" (canlı albüm
-    #             renkleri, vurgu renginde bas ve kenar ışığı) | "black" (düz siyah)
-    "layout": {"tabs": list(TABS), "hidden": [], "open": "last", "position": "center", "accent": "auto",
-               "material": "minimal"},
+    #             renkleri, vurgu renginde bas ve kenar ışığı) | "black" (düz siyah) | "glass" (sıvı cam:
+    #             mercek, buzlu bulanıklık, özel parlama); glass: "frosted" | "balanced" | "clear"
+    "layout": {"tabs": list(DEFAULT_ORDER), "hidden": [], "open": "last", "position": "center", "accent": "auto",
+               "material": "minimal", "glass": "balanced"},
     # Arayüz dili: "auto" (sistem dili), "en" ya da "tr"
     "language": "auto",
     # Genel klavye kısayolları (KWin üzerinden). Boş bırakırsan o kısayol kapanır.
@@ -110,7 +127,8 @@ def load():
 
 # Adanın Ayarlar sayfasından değiştirilebilen açık/kapalı ayarlar
 SWITCHES = ("suppress_plasma_popups", "hide_in_fullscreen", "clipboard_history",
-            "lyrics", "meeting_alerts", "privacy_dots", "weather_enabled", "phone", "spectrum")
+            "lyrics", "meeting_alerts", "privacy_dots", "weather_enabled", "football_enabled", "phone", "spectrum",
+            "otp_capture", "sounds", "screenshot_preview", "split_island")
 
 
 def set_switch(key, value):
@@ -140,8 +158,8 @@ def clean_layout(d):
     """Arayüzden gelen düzeni doğrular; bilinmeyen değerler varsayılana döner."""
     base = DEFAULTS["layout"]
     d = d if isinstance(d, dict) else {}
-    tabs = [t for t in d.get("tabs", []) if t in TABS]
-    tabs = list(dict.fromkeys(tabs)) + [t for t in TABS if t not in tabs]   # eksikler sona
+    tabs = list(dict.fromkeys(t for t in d.get("tabs", []) if t in TABS)) or list(DEFAULT_ORDER)
+    tabs += [t for t in DEFAULT_ORDER if t not in tabs]                     # eksikler (yeni sekmeler) sona
     hidden = [t for t in dict.fromkeys(d.get("hidden", [])) if t in TABS]
     if len(hidden) >= len(TABS):          # en az bir sekme görünür kalsın
         hidden = hidden[:-1]
@@ -154,7 +172,8 @@ def clean_layout(d):
         "open": d.get("open") if d.get("open") in ("last", "first") else base["open"],
         "position": d.get("position") if d.get("position") in ("center", "left", "right") else base["position"],
         "accent": accent,
-        "material": d.get("material") if d.get("material") in ("minimal", "ambient", "black") else base["material"],
+        "material": d.get("material") if d.get("material") in ("minimal", "ambient", "black", "glass") else base["material"],
+        "glass": d.get("glass") if d.get("glass") in ("frosted", "balanced", "clear") else base["glass"],
     }
 
 

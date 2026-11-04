@@ -25,15 +25,32 @@ KDE Plasma 6 (Wayland) için ekranın üstünde duran, Apple'ın Dynamic Island'
   yer imleri, dünya saati (`saat tokyo`), renk (`#0a84ff`), Unicode ve emoji (`u:heart`), pano, ada komutları.
   ↑/↓ seç, Enter çalıştır, Esc kapat
 - **Malzeme (Ayarlar → Görünüm):** Minimal (varsayılan: derin siyah, albüm renginin yalnızca bir iması,
-  ince kenar ışığı, buzlu cam kartlar), Ambiyans (kapak renkleri panele yayılır, ışık müzikle nefes alır),
+  ince kenar ışığı, buzlu cam kartlar), Sıvı cam (mercek kırılması, buzlu cam, özel parlama; imleci izleyen ışık, dokunma dalgası, duvar kağıdı yansıması, maddeleşme; bkz. docs/liquid-glass.md), Ambiyans (kapak renkleri panele yayılır, ışık müzikle nefes alır),
   Klasik siyah
 - **Gerçek ses spektrumu:** müzik çubukları hoparlöre giden sesin frekanslarına göre (saf Python FFT,
   yalnızca bellekte, yalnızca çubuklar görünürken)
 - **Sıvı geçişler:** seçim hapı gideceği sekmeye doğru damla gibi uzar, toplanır ve hafifçe sallanarak
   oturur; yeni sayfa hafif bir bulanıklıktan netleşerek kayar
+- **Ada ikiye bölünür:** müzik çalarken bir zamanlayıcı başlatınca ince bir boyunla küçük bir daire
+  damla gibi ayrılır, albüm kapağı onun içine süzülür; iş bitince geri erir. İki etkinlikte de bölünür
+- **Tek kapak:** albüm kapağı tek bir nesne olarak kapalı ada, ayrılan daire, üzerine gelince açılan görünüm
+  ve müzik sayfası arasında yaylanarak akar
+- **Doğrulama kodları:** bildirimdeki kod (telefondan SMS, e-posta, 2FA) adada büyük görünür; dokununca
+  kopyalanır. Yalnızca "kod / OTP / PIN / doğrulama" gibi sözcüklerin yakınındaki sayıları alır
+- **Ekran görüntüsü önizlemesi:** ekran görüntüsü alınca küçük önizleme: başka uygulamaya sürükle, **Aç**
+  ya da görüntüyü **Kopyala**. Spectacle ile kutudan çıktığı gibi çalışır
+- **Hızlı Bakış:** dosyayı açmadan önizle: resim, PDF'in ilk sayfası, videodan kare, metin/kod, kapaklı
+  ses, klasör. Komut paletinde `Ctrl+Y`, dosya rafında üstüne gelip `Boşluk`, ya da `island quicklook DOSYA`
+- **Arayüz sesleri** (isteğe bağlı, Ayarlar → Özellikler): kodla sentezlenmiş yumuşak sesler; panel açılışı,
+  iş bitişi, hata, ekran görüntüsü. Zamanlayıcı alarmı her zaman çalar
 - **Kendine göre düzenle:** paneldeki bir sekmeyi basılı tutup sürükle, diğerleri kayarak yer açar.
   Ayarlar → Sekmeler: sırala, kullanmadıklarını gizle, panel son sekmede mi ilk sekmede mi açılsın.
   Ayarlar → Görünüm: ada solda, ortada ya da sağda; vurgu rengi albüm kapağından ya da sabit
+- **Daha iyi söz bulma:** başlık aramadan önce temizlenir (`- Remastered 2011`, `(feat. X)`, `[Official Video]`,
+  "- Topic" kanalları, YouTube'un "Sanatçı - Şarkı" başlıkları); sonuçlar başlık, sanatçı ve süreye göre
+  puanlanır, aynı adlı başka şarkı seçilmez; sunucu meşgulse vazgeçmek yerine başka uç denenir. Yerel
+  dosyanın yanındaki `sarki.lrc` çevrimdışı kullanılır. Bulunamazsa sözlerin altına "sanatçı şarkı" yaz;
+  sonuç o şarkı için saklanır
 - **İngilizce ve Türkçe arayüz:** sistem diline göre; Ayarlar → Dil
 - **Müzik:** MPRIS oynatıcıları, kapak, ilerleme, ses çıkışı seçimi
 - **Senkron şarkı sözleri:** [LRCLIB](https://lrclib.net)'ten; söylenen satır parlak, satıra tıkla → oraya atla.
@@ -58,8 +75,10 @@ KDE Plasma 6 (Wayland) için ekranın üstünde duran, Apple'ın Dynamic Island'
 
 - **Ayarlar:** saatin yanındaki dişli. Plasma bildirim pencereleri, tam ekranda gizle, pano geçmişi,
   şarkı sözleri, toplantı uyarısı, gizlilik noktaları, Claude Code onaylarını kur/kaldır
-- **Hava durumu:** Sistem sekmesinde sıcaklık, durum, en yüksek/en düşük (Open-Meteo, anahtarsız).
+- **Hava durumu** kendi sekmesinde: şimdiki durum, önümüzdeki 9 saat (yağış ihtimalleriyle), 5 günlük tahmin
+  ve "yağmur 4 sa sonra" uyarısı (Open-Meteo, anahtarsız). Simgeler proje için çizildi, simge temasına bağlı değil.
   Konum: config.json'da `"weather": {"city": "İstanbul"}`; boşsa IP adresinden yaklaşık konum bulunur
+- **Maç** sekmesi: takip ettiğin takımın (varsayılan Liverpool) canlı skoru, sahada ilk 11 ve yedekler, sıradaki maçlar ve son sonuçlar. Kadro yayınlanınca bildirim, maç sırasında kapalı adada skor ve dakika; veri ESPN'den, anahtarsız.
 - **Telefon (KDE Connect):** Sistem sekmesinde telefonun pil yüzdesi, dokununca telefon çalar;
   gelen aramada kapalı adada uyarı. Telefon bildirimleri zaten Plasma bildirimi olarak adaya düşer
 - **Pano:** arama (Enter ilk sonucu kopyalar), sabitleme (Temizle sabitlenenleri silmez), kaç dk önce kopyalandığı;
@@ -102,7 +121,7 @@ Gerekenler: `qml6`, `layer-shell-qt`, Kirigami, Python 3 (PyGObject, dbus-python
 - `i18n.py`, `contents/ui/lang_en.js`: çeviriler (kaynak dil Türkçe)
 - `tests/`: `python -m unittest discover -s tests -t .`
 - `backend.py`: durum + komut sunucusu (127.0.0.1:47615), MPRIS, ses, ağ, takvim, bildirimler
-- `weather.py`, `phone.py`: hava durumu (Open-Meteo) ve KDE Connect (D-Bus)
+- `weather.py`, `football.py`, `wallpaper.py`, `phone.py`: hava durumu (Open-Meteo), maç takibi (ESPN), duvar kağıdı yolu (cam yansıması) ve KDE Connect (D-Bus)
 - `caldav.py`, `calendar_ics.py`: bağımlılıksız CalDAV istemcisi ve iCalendar okuyucu
 - `contents/ui/`: QML arayüz (`main.qml` ada ve panel, `IslandTabs.qml` sekme çubuğu, `View.qml`/`Bars.qml` ortak parçalar, `Page*.qml` sekmeler)
 - `contents/icons/`: ikonlar Isle projesinden (GPL-3.0, bkz. `contents/icons/LICENSE-isle-GPL3.txt`)

@@ -30,6 +30,7 @@ Item {
             onClicked: row.iconClicked()
         }
         IslandSlider {
+            sh: page.sh
             Layout.fillWidth: true
             Layout.preferredHeight: 16
             barHeight: 4
@@ -102,6 +103,7 @@ Item {
                     Layout.preferredHeight: 28
                     radius: 14
                     color: outMa.containsMouse || sh.deviceMenu ? "#3a3a3c" : Qt.rgba(1, 1, 1, 0.17)
+                    GlassBack { hot: outMa.containsMouse || sh.deviceMenu; down: outMa.pressed }
                     Row {
                         anchors.centerIn: parent
                         width: parent.width - 24
@@ -145,6 +147,7 @@ Item {
                     Layout.preferredHeight: 28
                     radius: 14
                     color: page.warm ? Qt.rgba(1, 0.84, 0.04, 0.18) : (nightMa.containsMouse ? "#3a3a3c" : Qt.rgba(1, 1, 1, 0.17))
+                    GlassBack { shown: !page.warm; hot: nightMa.containsMouse; down: nightMa.pressed }
                     Behavior on color { ColorAnimation { duration: 200 } }
                     Row {
                         anchors.centerIn: parent
@@ -189,6 +192,7 @@ Item {
             columnSpacing: 8
 
             ToggleTile {
+                sh: page.sh
                 Layout.fillWidth: true; Layout.fillHeight: true
                 active: sh.ctl.wifiOn
                 accent: "#0a84ff"
@@ -201,6 +205,7 @@ Item {
                 onRightClicked: sh.send("open_settings", "network")
             }
             ToggleTile {
+                sh: page.sh
                 Layout.fillWidth: true; Layout.fillHeight: true
                 enabled: sh.ctl.bt.present
                 opacity: sh.ctl.bt.present ? 1 : 0.4
@@ -213,6 +218,7 @@ Item {
                 onRightClicked: sh.send("open_settings", "bluetooth")
             }
             ToggleTile {
+                sh: page.sh
                 Layout.fillWidth: true; Layout.fillHeight: true
                 active: sh.ui.dnd
                 accent: "#5e5ce6"
@@ -223,6 +229,7 @@ Item {
                 onRightClicked: sh.send("open_settings", "notifications")
             }
             ToggleTile {
+                sh: page.sh
                 Layout.fillWidth: true; Layout.fillHeight: true
                 active: sh.power.profile !== "" && sh.power.profile !== "balanced"
                 accent: sh.power.profile === "performance" ? "#ff9f0a" : "#30d158"

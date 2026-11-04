@@ -45,10 +45,15 @@ import lyrics as lyrics_mod  # noqa: E402
 import privacy  # noqa: E402
 import phone as phone_mod  # noqa: E402
 import weather as weather_mod  # noqa: E402
+import football as football_mod  # noqa: E402
+import wallpaper as wallpaper_mod  # noqa: E402
 from alerts import Alerts  # noqa: E402
 from agents import Agents  # noqa: E402
 import controls  # noqa: E402
 import palette as palette_mod  # noqa: E402
+import preview as preview_mod  # noqa: E402
+import shots as shots_mod  # noqa: E402
+import sounds as sounds_mod  # noqa: E402
 import spectrum as spectrum_mod  # noqa: E402
 import sysinfo  # noqa: E402
 from clipboard import Clipboard  # noqa: E402
@@ -98,12 +103,17 @@ class State:
             "docs": [],
             "docNew": {"seq": 0, "id": 0},
             "weather": {"ok": False},
+            "football": {"ok": False},
+            "wallpaper": "",
+            "footballSearch": {"q": "", "items": [], "seq": 0},
             "phone": {"present": False, "devices": []},
             "rec": {"state": "idle", "since": 0, "error": "", "last": ""},
             "panelReq": 0,
             "tabReq": {"seq": 0},
             "activities": {"items": [], "done": {"seq": 0}},
             "paletteReq": {"seq": 0, "q": ""},
+            "shot": {"seq": 0},
+            "quickReq": {"seq": 0, "path": ""},
         }
         self.kv = {k: 1 for k in self.data}  # anahtar -> son değiştiği sürüm
 
@@ -403,13 +413,34 @@ def apply_switch(key, value):
                 clip.items = []
                 clip._publish()
             state.update("clipOn", bool(value))
+    elif key == "otp_capture" and notifs:
+        notifs.otp = bool(value)
     elif key == "lyrics" and not value and lyrics:
         lyrics.set_want(False)
     elif key == "weather_enabled" and weather:
         weather.refresh()
+    elif key == "football_enabled" and football:
+        football.refresh()
+        if not value:
+            live.end("football")
     elif key == "phone":
         set_phone(bool(value))
     publish_settings()
+
+
+FOOTBALL_COLOR = "#d11317"
+
+
+def on_football(kind, d):
+    """Maç olayları: kadro açıklanınca bildirim, maç sırasında Canlı Etkinlik, gol bildirimi."""
+    color = (state.data.get("football", {}).get("team", {}) or {}).get("color") or FOOTBALL_COLOR
+    for op, msg in football_mod.activity_ops(kind, d, color):
+        if op == "set":
+            live.handle(msg)
+        elif op == "notify":
+            live.notify(msg)
+        elif op == "end":
+            live.end(msg["id"], msg["state"], msg["message"])
 
 
 def set_layout(changes):
@@ -476,7 +507,12 @@ def slow_poller():
     last_cal = 0
     last_ctl = 0
     first_net = True
+    last_wall = None
     while True:
+        wm = wallpaper_mod.mtime()
+        if wm != last_wall:
+            last_wall = wm
+            state.update("wallpaper", wallpaper_mod.current())
         state.update("battery", sysinfo.battery_info())
         prev_net = state.data["wifi"]
         net = read_network_stable()
@@ -501,6 +537,8 @@ def slow_poller():
             publish_settings()
             if weather:
                 weather.refresh()
+            if football:
+                football.refresh()
         if changed or time.time() - last_cal > 600:
             last_cal = time.time()
             try:
@@ -635,6 +673,7 @@ class Mpris:
             "artist": ", ".join(artists),
             "album": md.get("xesam:album", ""),
             "artUrl": md.get("mpris:artUrl", ""),
+            "url": str(md.get("xesam:url", "")),          # yerel dosyaysa yanındaki .lrc aranır
             "length": int(md.get("mpris:length", 0)) // 1000,  # ms
             "position": int(pos) // 1000,  # ms
             "stamp": int(time.time() * 1000),
@@ -688,6 +727,7 @@ BR_LOG = os.path.expanduser("~/.local/state/dynamic-island/brightness.log")
 power = None
 night = None
 fs_watch = None
+shot_watch = None
 store = None
 stats = None
 clip = None
@@ -695,9 +735,12 @@ recorder = None
 focus_timer = None
 lyrics = None
 weather = None
+football = None
 phone = None
 agents = Agents(lambda v: state.update("agents", v))
-live = activities_mod.Activities(lambda v: state.update("activities", v))
+snd = sounds_mod.Sounds(lambda: bool(cfg.get("sounds", False)), lambda: cfg.get("sound_volume", 0.45))
+live = activities_mod.Activities(lambda v: state.update("activities", v),
+                                 play_sound=lambda: snd.play("timer", force=True))
 spectrum = spectrum_mod.Spectrum()
 palette = palette_mod.Palette(copy=lambda text: clip.copy_text(text[:2000]) if clip else None)
 ui = config.load_ui()
@@ -718,6 +761,7 @@ def set_dnd(on):
 
 
 def execute(cmd, arg):
+    global cfg
     if cmd == "play_pause":
         mpris.call("PlayPause")
     elif cmd == "next":
@@ -746,16 +790,50 @@ def execute(cmd, arg):
         set_layout(arg)
     elif cmd == "setting" and isinstance(arg, dict):
         apply_switch(str(arg.get("key", "")), bool(arg.get("value")))
+    elif cmd == "football_team" and isinstance(arg, dict) and str(arg.get("id", "")).isdigit():
+        team = {"id": str(arg["id"]), "name": str(arg.get("name", ""))[:60],
+                "league": str(arg.get("league", "eng.1"))[:30]}
+        config.set_value("football", {**cfg.get("football", {}), "team": team})
+        cfg = config.load()
+        live.end("football")
+        if football:
+            football.refresh()
+    elif cmd == "football_search" and isinstance(arg, str):
+        q = arg.strip()[:40]
+
+        def _search(q=q):
+            try:
+                items = football_mod.search_teams(q)
+            except Exception as e:
+                print("takım araması başarısız:", e, flush=True)
+                items = []
+            state.update("footballSearch", {"q": q, "items": items,
+                                            "seq": state.data["footballSearch"]["seq"] + 1})
+        threading.Thread(target=_search, daemon=True).start()
+    elif cmd == "football_refresh" and football:
+        football.refresh()
     elif cmd == "phone_ring" and phone:
         bg(lambda: phone.ring(str(arg)))
     elif cmd == "claude_hooks":
         bg(lambda: set_claude_hooks(bool(arg)))
+    elif cmd == "quicklook" and isinstance(arg, str) and (arg == "" or preview_mod.is_previewable_path(arg)):
+        # boş yol: açık önizlemeyi kapat
+        state.update("quickReq", {"seq": state.data["quickReq"]["seq"] + 1, "path": arg})
+    elif cmd == "shot_open" and shot_watch and shot_watch.last:
+        subprocess.Popen(["xdg-open", shot_watch.last], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
+    elif cmd == "shot_copy" and shot_watch and shot_watch.last and clip:
+        bg(lambda: clip.copy_image(shot_watch.last))
+    elif cmd == "sound" and isinstance(arg, str):
+        snd.play(arg)
     elif cmd == "activity_end":
         live.end(str(arg), "cancelled")
     elif cmd == "agent_answer" and isinstance(arg, dict):
         agents.answer(int(arg.get("id", 0)), str(arg.get("answer", "")))
     elif cmd == "lyrics_want" and lyrics:
         lyrics.set_want(bool(arg) and cfg.get("lyrics", True))
+    elif cmd == "lyrics_search" and lyrics and isinstance(arg, str):
+        lyrics.manual(arg)            # elle yazılan arama (bulunamayan / yanlış çıkan şarkılar için)
     elif cmd.startswith("focus_") and focus_timer:
         if cmd == "focus_toggle":
             focus_timer.toggle()
@@ -793,7 +871,7 @@ def execute(cmd, arg):
             subprocess.Popen(["xdg-open", str(arg)], stdout=subprocess.DEVNULL,
                              stderr=subprocess.DEVNULL, start_new_session=True)
     elif cmd == "open_tab" and isinstance(arg, dict):
-        # Paneli belirli bir sekmede aç (betikler / kısayollar için): {"tab": 0-8, "lyrics": bool, "sub": Araçlar bölümü 0-3}
+        # Paneli belirli bir sekmede aç (betikler / kısayollar için): {"tab": 0-9, "lyrics": bool, "sub": Araçlar bölümü 0-3}
         req = {"seq": state.data["tabReq"]["seq"] + 1, "tab": int(arg.get("tab", 0))}
         if "lyrics" in arg:
             req["lyrics"] = bool(arg["lyrics"])
@@ -939,6 +1017,12 @@ class Handler(BaseHTTPRequestHandler):
             # Müzik çubukları ~30 kez/sn sorar; yalnızca son bant değerleri (ayrı, hafif uç)
             levels = spectrum.levels() if cfg.get("spectrum", True) and spectrum.available else []
             return self.reply(200, json.dumps({"b": levels}, separators=(",", ":")).encode())
+        if u.path == "/preview":
+            # Hızlı Bakış: dosya bilgisi + küçük resim (PDF/video/ses için üretilir, önbelleğe alınır)
+            path = parse_qs(u.query).get("path", [""])[0]
+            if not preview_mod.is_previewable_path(path):
+                return self.reply(404, json.dumps({"error": "missing"}).encode())
+            return self.reply(200, json.dumps(preview_mod.info(path)).encode())
         if u.path == "/search":
             # Komut paleti: uygulamalar + dosyalar (hesap makinesi, komutlar arayüzde)
             qs = parse_qs(u.query)
@@ -1009,12 +1093,14 @@ def main():
                                cfg.get("suppress_plasma_popups", True))
     except Exception as e:
         print("bildirim dinleyici başlatılamadı:", e, flush=True)
+    if notifs:
+        notifs.otp = bool(cfg.get("otp_capture", True))
     refresh_volume()
     if ui.get("focusDnd"):   # önceki çalışmada odak sayacı açık kalmıştı
         ui["dnd"] = ui["focusDnd"] = False
         config.save_ui(ui)
     state.update("ui", dict(ui))
-    global brightness, power, night, fs_watch
+    global brightness, power, night, fs_watch, shot_watch
     try:
         brightness = controls.Brightness(on_brightness)
     except Exception as e:
@@ -1028,12 +1114,16 @@ def main():
     except Exception as e:
         print("Gece Işığı denetimi yok:", e, flush=True)
     refresh_audio()
-    global store, stats, clip, recorder, focus_timer, lyrics, weather
+    global store, stats, clip, recorder, focus_timer, lyrics, weather, football
     lyrics = lyrics_mod.Lyrics(lambda v: state.update("lyrics", v))
     privacy.Privacy(lambda v: state.update("privacy", v))
     weather = weather_mod.Weather(
         lambda v: state.update("weather", v),
         lambda: {**cfg.get("weather", {}), "enabled": cfg.get("weather_enabled", True)})
+    football = football_mod.Football(
+        lambda v: state.update("football", v),
+        lambda: {**cfg.get("football", {}), "enabled": cfg.get("football_enabled", True)},
+        on_football)
     if cfg.get("phone", True):
         set_phone(True)
     Alerts(emit_alert)
@@ -1057,6 +1147,10 @@ def main():
         fs_watch.load()
     except Exception as e:
         print("KWin köprüsü yok:", e, flush=True)
+    try:
+        shot_watch = shots_mod.Shots(lambda v: state.update("shot", v), extra=cfg.get("screenshot_dirs", []))
+    except Exception as e:
+        print("ekran görüntüsü izleyicisi başlatılamadı:", e, flush=True)
     threading.Thread(target=volume_watcher, daemon=True).start()
     threading.Thread(target=slow_poller, daemon=True).start()
 

@@ -8,6 +8,7 @@ Item {
 
     property var sh
     property bool outputs: false
+    property Item artAnchor: art
 
     readonly property var media: sh.media
     onVisibleChanged: if (!visible) outputs = false
@@ -47,12 +48,11 @@ Item {
         visible: sh.hasMedia && !page.outputs && !sh.lyricsOn
         anchors.fill: parent
 
-        ArtImage {
+        // Kapağın yeri: kapağı ada düzeyindeki tek "uçan kapak" çizer (main.qml, flyArt)
+        Item {
             id: art
-            width: 124; height: 124; radius: 16
+            width: 124; height: 124
             anchors.verticalCenter: parent.verticalCenter
-            source: page.media.artUrl || ""
-            MouseArea { anchors.fill: parent; onClicked: sh.send("raise") }
         }
 
         Column {
@@ -127,6 +127,7 @@ Item {
                     font.features: { "tnum": 1 }
                 }
                 IslandSlider {
+                    sh: page.sh
                     Layout.fillWidth: true
                     Layout.preferredHeight: 16
                     barHeight: 4
@@ -215,6 +216,7 @@ Item {
                 onClicked: sh.send("vol_mute")
             }
             IslandSlider {
+                sh: page.sh
                 Layout.fillWidth: true
                 Layout.preferredHeight: 16
                 barHeight: 4

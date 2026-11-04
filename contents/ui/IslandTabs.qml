@@ -22,7 +22,9 @@ Item {
         { icon: sh.ic("isle-sun-symbolic"), label: sh.t("Kontrol") },
         { icon: "view-app-grid-symbolic", label: sh.t("Uygulama") },
         { icon: sh.ic("isle-gauge"), label: sh.t("Sistem") },
-        { icon: sh.ic("isle-shelf"), label: sh.t("Araçlar") }
+        { icon: sh.ic("isle-shelf"), label: sh.t("Araçlar") },
+        { icon: sh.ic("isle-weather"), label: sh.t("Hava") },
+        { icon: sh.ic("isle-football"), label: sh.t("Maç") }
     ]
 
     // Sürüklerken geçici sıra; yoksa ayardaki sıra
@@ -35,7 +37,7 @@ Item {
     Text {
         id: selMeasure
         visible: false
-        text: sh.tab >= 0 && sh.tab < 8 ? tabBar.tabs[sh.tab].label : ""
+        text: sh.tab >= 0 && sh.tab < tabBar.tabs.length ? tabBar.tabs[sh.tab].label : ""
         font.family: "Inter"
         font.pixelSize: 13
         font.weight: Font.DemiBold
@@ -50,13 +52,15 @@ Item {
 
     // Seçili sekmenin sıvı cam hapı (sürüklenirken sekmeyi doğrudan izler)
     LiquidPill {
-        readonly property Item target: tabRep.count > sh.tab && sh.tab >= 0 && sh.tab < 8 ? tabRep.itemAt(sh.tab) : null
+        readonly property Item target: tabRep.count > sh.tab && sh.tab >= 0 && sh.tab < tabBar.tabs.length ? tabRep.itemAt(sh.tab) : null
         visible: target !== null && target.visible
         width: tabBar.width
         height: 36
         goalX: target ? tabBar.xOf(sh.tab) : 0
         goalW: tabBar.selW
         follow: target !== null && target.dragging
+        glassLayer: sh.glassLayer
+        glassFrost: sh.glassFrost || 0.3
         x: follow ? target.x - goalX : 0
     }
 
@@ -86,6 +90,7 @@ Item {
                 anchors.centerIn: parent
                 width: parent.width; height: 28; radius: 14
                 color: Qt.rgba(1, 1, 1, 0.05)
+                GlassBack { hot: true }
             }
             // Sürüklenen sekme: hafif parlak halka
             Rectangle {

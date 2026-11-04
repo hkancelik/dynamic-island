@@ -169,6 +169,7 @@ Item {
             spacing: 10
             Column {
                 Layout.fillWidth: true
+                Layout.minimumWidth: 0
                 spacing: 2
                 Text {
                     renderType: Text.CurveRendering
@@ -183,9 +184,12 @@ Item {
                     font.family: "Inter"
                     text: sh.material === "minimal" ? sh.t("Sade derinlik: kısık albüm ışığı, ince kenar ışığı")
                         : sh.material === "ambient" ? sh.t("Canlı albüm renkleri, müzikle nefes alan ışık")
+                        : sh.material === "glass" ? sh.t("Sıvı cam: arkasındakini büken mercek, buzlu cam, özel parlama")
                         : sh.t("Düz siyah çentik")
                     color: Qt.rgba(1, 1, 1, 0.55)
                     font.pixelSize: 11
+                    width: parent.width
+                    elide: Text.ElideRight
                 }
             }
             Rectangle {
@@ -198,7 +202,7 @@ Item {
                     x: 3; y: 3
                     Repeater {
                         model: [{ k: "minimal", l: sh.t("Minimal") }, { k: "ambient", l: sh.t("Ambiyans") },
-                                { k: "black", l: sh.t("Klasik siyah") }]
+                                { k: "glass", l: sh.t("Sıvı cam") }, { k: "black", l: sh.t("Klasik siyah") }]
                         Rectangle {
                             required property var modelData
                             readonly property bool sel: sh.material === modelData.k
@@ -216,6 +220,53 @@ Item {
                                 font.weight: Font.Medium
                             }
                             MouseArea { anchors.fill: parent; onClicked: sh.send("set_layout", { material: modelData.k }) }
+                        }
+                    }
+                }
+            }
+        }
+        // Sıvı cam ön ayarı: Buzlu (okunaklı) | Dengeli | Berrak (daha çok kırılma)
+        RowLayout {
+            visible: sh.material === "glass"
+            Layout.fillWidth: true
+            spacing: 12
+            Text {
+                renderType: Text.CurveRendering
+                font.family: "Inter"
+                text: sh.t("Cam stili")
+                color: "white"
+                font.pixelSize: 13
+                font.weight: Font.DemiBold
+                Layout.fillWidth: true
+            }
+            Rectangle {
+                width: glassRow.implicitWidth + 6
+                height: 28
+                radius: 14
+                color: Qt.rgba(1, 1, 1, 0.11)
+                Row {
+                    id: glassRow
+                    x: 3; y: 3
+                    Repeater {
+                        model: [{ k: "frosted", l: sh.t("Buzlu") }, { k: "balanced", l: sh.t("Dengeli") },
+                                { k: "clear", l: sh.t("Berrak") }]
+                        Rectangle {
+                            required property var modelData
+                            readonly property bool sel: sh.glassStyle === modelData.k
+                            width: gText.implicitWidth + 22; height: 22; radius: 11
+                            color: sel ? "#3a3a3c" : "transparent"
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Text {
+                                id: gText
+                                renderType: Text.CurveRendering
+                                font.family: "Inter"
+                                anchors.centerIn: parent
+                                text: modelData.l
+                                color: parent.sel ? "white" : "#8e8e93"
+                                font.pixelSize: 12
+                                font.weight: Font.Medium
+                            }
+                            MouseArea { anchors.fill: parent; onClicked: sh.send("set_layout", { glass: modelData.k }) }
                         }
                     }
                 }

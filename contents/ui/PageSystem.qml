@@ -27,7 +27,8 @@ Item {
                                       : bat.state === "Full" ? sh.t("Dolu")
                                       : bat.state === "Discharging" ? sh.t("Pilde") : sh.t("Beklemede")
 
-    component StatCard: Rectangle {
+    component StatCard: GlassCard {
+        sh: page.sh
         id: card
         property string title
         property string value
@@ -41,15 +42,17 @@ Item {
         Layout.fillWidth: true
         Layout.fillHeight: true
         Layout.preferredWidth: 1
-        radius: 14
-        color: Qt.rgba(1, 1, 1, 0.11)
         clip: true
 
         Spark {
+            // köşe yarıçapının içinde kal: kare dolgu yuvarlak köşeden taşmasın
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            height: 30
+            anchors.leftMargin: 5
+            anchors.rightMargin: 5
+            anchors.bottomMargin: 5
+            height: 28
             opacity: 0.5
             values: card.series
             lineColor: card.accent
@@ -122,28 +125,6 @@ Item {
             spacing: 8
 
             StatCard {
-                visible: page.sh.weather.ok === true
-                Layout.preferredWidth: 1.3
-                title: page.sh.weather.place || sh.t("Hava")
-                value: page.sh.weather.ok ? page.sh.weather.temp + "°" : ""
-                sub: page.sh.weather.ok ? page.sh.weather.text : ""
-                icon: page.sh.weather.ok ? page.sh.weather.icon : ""
-                accent: "#ff9f0a"
-                bar: -1
-                // değerin sağında, tek satır: en yüksek / en düşük
-                Text {
-                    visible: page.sh.weather.ok === true
-                    renderType: Text.CurveRendering
-                    font.family: "Inter"
-                    anchors.right: parent.right; anchors.rightMargin: 12
-                    y: 30
-                    text: page.sh.weather.ok ? "↑" + page.sh.weather.hi + "° ↓" + page.sh.weather.lo + "°" : ""
-                    color: Qt.rgba(1, 1, 1, 0.6)
-                    font.pixelSize: 11
-                    font.features: { "tnum": 1 }
-                }
-            }
-            StatCard {
                 title: sh.t("İşlemci")
                 value: page.ready ? page.st.cpu + "%" : "…"
                 sub: page.ready ? page.st.temp + "°C" : ""
@@ -175,11 +156,10 @@ Item {
         }
 
         // Pil: tek satır
-        Rectangle {
+        GlassCard {
+            sh: page.sh
             Layout.fillWidth: true
             Layout.preferredHeight: 52
-            radius: 14
-            color: Qt.rgba(1, 1, 1, 0.11)
 
             RowLayout {
                 anchors.fill: parent

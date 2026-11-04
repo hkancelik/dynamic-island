@@ -13,6 +13,8 @@ Item {
     property real baseH: 28
     property real restAlpha: 0.09        // durgunken dolgu (siyah üzerinde)
     property bool follow: false          // sürüklerken: yay yok, doğrudan izle
+    property var glassLayer: null        // sıvı cam modunda: mercekli cam hap (GlassBackdrop)
+    property real glassFrost: 0.3
 
     property real l: goalX
     property real r: goalX + goalW
@@ -33,8 +35,24 @@ Item {
     readonly property real stretch: Math.max(0, w / Math.max(1, goalW) - 1)
     readonly property real thick: Math.min(1, stretch * 4)        // 0 durgun .. 1 akıyor
 
+    GlassSurface {
+        visible: lp.glassLayer !== null
+        glassLayer: lp.glassLayer
+        tick: lp.l + lp.r + lp.x
+        x: lp.l
+        width: lp.w
+        height: lp.baseH * (1 - 0.14 * Math.min(1, lp.stretch * 2))
+        anchors.verticalCenter: parent.verticalCenter
+        radius: height / 2
+        frostAmount: lp.glassFrost * 0.6
+        tintAmount: 0.10 + 0.08 * lp.thick
+        glow: lp.thick * 0.5
+        lensAmount: 1 + lp.thick * 0.4
+    }
+
     Rectangle {
         id: body
+        visible: lp.glassLayer === null
         x: lp.l
         width: lp.w
         height: lp.baseH * (1 - 0.14 * Math.min(1, lp.stretch * 2))

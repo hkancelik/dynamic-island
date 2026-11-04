@@ -26,6 +26,7 @@ Item {
         signal changed(int v)
         width: 168; height: 36; radius: 18
         color: Qt.rgba(1, 1, 1, 0.11)
+        GlassBack {}
         Text {
             renderType: Text.CurveRendering
             font.family: "Inter"
@@ -185,6 +186,7 @@ Item {
                 width: startText.implicitWidth + 50
                 height: 36; radius: 18
                 color: startMa.pressed ? "#48484a" : startMa.containsMouse ? "#3a3a3c" : Qt.rgba(1, 1, 1, 0.17)
+                GlassBack { hot: startMa.containsMouse; down: startMa.pressed }
                 Row {
                     anchors.centerIn: parent
                     spacing: 7

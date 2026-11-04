@@ -131,6 +131,7 @@ Item {
                 Layout.preferredHeight: 28
                 radius: 14
                 color: newMa.pressed ? "#48484a" : newMa.containsMouse ? "#3a3a3c" : Qt.rgba(1, 1, 1, 0.17)
+                GlassBack { hot: newMa.containsMouse; down: newMa.pressed }
                 Row {
                     anchors.centerIn: parent
                     spacing: 6
@@ -270,6 +271,7 @@ Item {
             Layout.fillHeight: true
             radius: 14
             color: Qt.rgba(1, 1, 1, 0.11)
+            GlassBack {}
 
             ScrollView {
                 anchors.fill: parent

@@ -14,6 +14,7 @@ import re
 import time
 
 import apps
+import otp
 import dbus
 import dbus.bus
 import dbus.service
@@ -87,6 +88,7 @@ class Notifications:
         self.state = state
         self.ignore = set(ignore_apps)
         self.suppress = suppress_popups
+        self.otp = True      # doğrulama kodlarını bildirimden ayıkla (ayarlardan kapatılabilir)
         self.items = []     # en yeni başta
         self.pending = {}   # Notify çağrı serial'i -> kayıt (izleme modunda yanıttaki id için)
         self.counter = 0
@@ -194,6 +196,7 @@ class Notifications:
             "body": _clean(body, 280),
             "ts": int(time.time() * 1000),
             "desktop": str(hints.get("desktop-entry", "")) or apps.guess(app, app_icon),
+            "code": otp.extract(summary, body) if self.otp else "",
         })
         self.items.insert(0, entry)
         del self.items[MAX_ITEMS:]

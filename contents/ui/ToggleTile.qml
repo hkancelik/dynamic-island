@@ -1,7 +1,7 @@
 import QtQuick
 
 // Açık/kapalı durumlu hızlı ayar karosu. Sol tık: eylem, sağ tık: ayrıntı/ayarlar.
-Rectangle {
+GlassCard {
     id: t
 
     property string icon
@@ -13,11 +13,11 @@ Rectangle {
     signal rightClicked
 
     implicitHeight: 62
-    radius: 14
-    color: ma.containsMouse ? Qt.rgba(1, 1, 1, 0.17) : Qt.rgba(1, 1, 1, 0.11)
+    fill: ma.containsMouse ? 0.17 : 0.11
+    hot: ma.containsMouse
     scale: ma.pressed ? 0.95 : 1
 
-    Behavior on color { ColorAnimation { duration: 160 } }
+    Behavior on fill { NumberAnimation { duration: 160 } }
     Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutCubic } }
 
     // Açık hal yalnızca ikon dairesinde: vurgu dolgusu + beyaz ikon

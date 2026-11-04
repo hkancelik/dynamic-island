@@ -15,8 +15,10 @@ Item {
         property int unread: 0
         property var rec: ({ state: "idle" })
         property var layout: ({ open: "last" })
-        property var tabOrder: [0, 1, 2, 3, 4, 5, 6, 7]
-        property var allTabIds: [0, 1, 2, 3, 4, 5, 6, 7]
+        property var tabKeys: ["music", "notifications", "focus", "calendar", "controls", "apps", "system", "tools", "weather"]
+        property var defaultTabIds: [0, 1, 2, 3, 4, 5, 6, 8, 7]
+        property var tabOrder: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        property var allTabIds: [0, 1, 2, 3, 4, 5, 6, 7, 8]
         property var hiddenIds: []
         property var saved: null
         function t(s) { return s }
@@ -41,7 +43,7 @@ Item {
 
         function init() {
             stub.tab = 0; stub.saved = null; stub.hiddenIds = []
-            stub.tabOrder = [0, 1, 2, 3, 4, 5, 6, 7]; stub.allTabIds = [0, 1, 2, 3, 4, 5, 6, 7]
+            stub.tabOrder = [0, 1, 2, 3, 4, 5, 6, 7, 8]; stub.allTabIds = [0, 1, 2, 3, 4, 5, 6, 7, 8]
             wait(400)   // animasyonlar otursun
         }
 
@@ -63,7 +65,7 @@ Item {
             for (var x = c.x; x <= bar.width + 20; x += 12) { mouseMove(bar, x, c.y); wait(5) }
             mouseRelease(bar, bar.width + 20, c.y)
             verify(stub.saved !== null, "sıra kaydedilmedi")
-            compare(stub.saved.order, [1, 2, 3, 4, 5, 6, 7, 0])
+            compare(stub.saved.order, [1, 2, 3, 4, 5, 6, 7, 8, 0])
             compare(bar.draft, null)
         }
 
@@ -82,7 +84,7 @@ Item {
             for (var x = 20; x <= cw * 2 + 20; x += 10) { mouseMove(host, x, y); wait(5) }
             mouseRelease(host, cw * 2 + 20, y)
             verify(stub.saved !== null)
-            compare(stub.saved.order, [1, 2, 0, 3, 4, 5, 6, 7])
+            compare(stub.saved.order, [1, 2, 0, 3, 4, 5, 6, 7, 8])
         }
 
         function test_editor_tap_hides_and_shows() {
@@ -95,7 +97,7 @@ Item {
         }
 
         function test_last_tab_cannot_be_hidden() {
-            stub.hiddenIds = [1, 2, 3, 4, 5, 6, 7]
+            stub.hiddenIds = [1, 2, 3, 4, 5, 6, 7, 8]
             stub.tabOrder = [0]
             var cw = editor.cellW + editor.gap
             stub.saved = null
