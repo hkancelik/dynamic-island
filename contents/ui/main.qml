@@ -1452,7 +1452,8 @@ Window {
                         visible: status === Image.Ready
                         anchors.verticalCenter: parent.verticalCenter
                         width: 22; height: 22
-                        sourceSize: Qt.size(44, 44)
+                        sourceSize: Qt.size(128, 128)
+                        mipmap: true
                         fillMode: Image.PreserveAspectFit
                         smooth: true
                         source: root.scoreOn ? root.logoSrc(root.act.left_icon) : ""
@@ -1532,7 +1533,8 @@ Window {
                     visible: root.scoreOn && status === Image.Ready
                     anchors.verticalCenter: parent.verticalCenter
                     width: 22; height: 22
-                    sourceSize: Qt.size(44, 44)
+                    sourceSize: Qt.size(128, 128)
+                        mipmap: true
                     fillMode: Image.PreserveAspectFit
                     smooth: true
                     source: root.scoreOn ? root.logoSrc(root.act.right_icon) : ""
@@ -2115,7 +2117,8 @@ Window {
                 Image {
                     anchors.centerIn: parent
                     width: 22; height: 22
-                    sourceSize: Qt.size(44, 44)
+                    sourceSize: Qt.size(128, 128)
+                        mipmap: true
                     source: root.ic("isle-claude")
                 }
                 Rectangle {   // bekleyen başka istek varsa sayısı
