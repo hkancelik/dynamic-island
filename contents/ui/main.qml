@@ -1452,7 +1452,7 @@ Window {
                         id: logoL
                         visible: status === Image.Ready
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 24; height: 24
+                        width: 26; height: 26
                         sourceSize: Qt.size(128, 128)
                         mipmap: true
                         fillMode: Image.PreserveAspectFit
@@ -1534,7 +1534,7 @@ Window {
                     id: logoR
                     visible: root.scoreOn && status === Image.Ready
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 24; height: 24
+                    width: 26; height: 26
                     sourceSize: Qt.size(128, 128)
                     mipmap: true
                     fillMode: Image.PreserveAspectFit
