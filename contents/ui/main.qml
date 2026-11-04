@@ -1448,21 +1448,16 @@ Window {
                     visible: root.scoreOn
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 8
-                    Rectangle {      // açık zemin: koyu armalar siyah adada kaybolmasın
-                        visible: logoL.status === Image.Ready
+                    Image {       // maç: sol takım logosu
+                        id: logoL
+                        visible: status === Image.Ready
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 26; height: 26; radius: 13
-                        color: Qt.rgba(1, 1, 1, 0.92)
-                        Image {
-                            id: logoL
-                            anchors.centerIn: parent
-                            width: 20; height: 20
-                            sourceSize: Qt.size(128, 128)
-                            mipmap: true
-                            fillMode: Image.PreserveAspectFit
-                            smooth: true
-                            source: root.scoreOn ? root.logoSrc(root.act.left_icon) : ""
-                        }
+                        width: 24; height: 24
+                        sourceSize: Qt.size(128, 128)
+                        mipmap: true
+                        fillMode: Image.PreserveAspectFit
+                        smooth: true
+                        source: root.scoreOn ? root.logoSrc(root.act.left_icon) : ""
                     }
                     Text {
                         renderType: Text.CurveRendering
@@ -1535,21 +1530,16 @@ Window {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 6
                 layoutDirection: Qt.RightToLeft
-                Rectangle {   // maç: sağ takım [skor logo], açık zeminli
-                    visible: root.scoreOn && logoR.status === Image.Ready
+                Image {       // maç: sağ takım logosu
+                    id: logoR
+                    visible: root.scoreOn && status === Image.Ready
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 26; height: 26; radius: 13
-                    color: Qt.rgba(1, 1, 1, 0.92)
-                    Image {
-                        id: logoR
-                        anchors.centerIn: parent
-                        width: 20; height: 20
-                        sourceSize: Qt.size(128, 128)
-                        mipmap: true
-                        fillMode: Image.PreserveAspectFit
-                        smooth: true
-                        source: root.scoreOn ? root.logoSrc(root.act.right_icon) : ""
-                    }
+                    width: 24; height: 24
+                    sourceSize: Qt.size(128, 128)
+                    mipmap: true
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    source: root.scoreOn ? root.logoSrc(root.act.right_icon) : ""
                 }
                 Text {
                     visible: root.scoreOn
