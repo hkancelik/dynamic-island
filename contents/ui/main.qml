@@ -1448,15 +1448,21 @@ Window {
                     visible: root.scoreOn
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 8
-                    Image {
-                        visible: status === Image.Ready
+                    Rectangle {      // açık zemin: koyu armalar siyah adada kaybolmasın
+                        visible: logoL.status === Image.Ready
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 22; height: 22
-                        sourceSize: Qt.size(128, 128)
-                        mipmap: true
-                        fillMode: Image.PreserveAspectFit
-                        smooth: true
-                        source: root.scoreOn ? root.logoSrc(root.act.left_icon) : ""
+                        width: 26; height: 26; radius: 13
+                        color: Qt.rgba(1, 1, 1, 0.92)
+                        Image {
+                            id: logoL
+                            anchors.centerIn: parent
+                            width: 20; height: 20
+                            sourceSize: Qt.size(128, 128)
+                            mipmap: true
+                            fillMode: Image.PreserveAspectFit
+                            smooth: true
+                            source: root.scoreOn ? root.logoSrc(root.act.left_icon) : ""
+                        }
                     }
                     Text {
                         renderType: Text.CurveRendering
@@ -1515,7 +1521,7 @@ Window {
                 font.family: "Inter"
                 anchors.centerIn: parent
                 text: root.scoreOn ? (root.act.center || "") : root.clock
-                color: root.scoreOn ? root.actColor(root.act) : "white"
+                color: "white"
                 font.pixelSize: 15
                 font.weight: Font.DemiBold
                 font.letterSpacing: -0.1
@@ -1529,15 +1535,21 @@ Window {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 6
                 layoutDirection: Qt.RightToLeft
-                Image {       // maç: sağ takım [skor logo]
-                    visible: root.scoreOn && status === Image.Ready
+                Rectangle {   // maç: sağ takım [skor logo], açık zeminli
+                    visible: root.scoreOn && logoR.status === Image.Ready
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 22; height: 22
-                    sourceSize: Qt.size(128, 128)
+                    width: 26; height: 26; radius: 13
+                    color: Qt.rgba(1, 1, 1, 0.92)
+                    Image {
+                        id: logoR
+                        anchors.centerIn: parent
+                        width: 20; height: 20
+                        sourceSize: Qt.size(128, 128)
                         mipmap: true
-                    fillMode: Image.PreserveAspectFit
-                    smooth: true
-                    source: root.scoreOn ? root.logoSrc(root.act.right_icon) : ""
+                        fillMode: Image.PreserveAspectFit
+                        smooth: true
+                        source: root.scoreOn ? root.logoSrc(root.act.right_icon) : ""
+                    }
                 }
                 Text {
                     visible: root.scoreOn
