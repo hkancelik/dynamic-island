@@ -134,3 +134,15 @@ class ActivitiesTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ScoreboardTest(unittest.TestCase):
+    def test_score_fields(self):
+        pub = []
+        live = activities.Activities(pub.append, play_sound=False)
+        live.set({"id": "m", "title": "A – B", "left": "1", "right": "0", "center": "67'",
+                  "left_icon": "/tmp/a.png", "right_icon": "http://evil/x.png"})
+        it = pub[-1]["items"][0]
+        self.assertEqual((it["left"], it["right"], it["center"]), ("1", "0", "67'"))
+        self.assertEqual(it["left_icon"], "/tmp/a.png")
+        self.assertEqual(it["right_icon"], "")      # uzak adres kabul edilmez

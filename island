@@ -137,6 +137,15 @@ def do_set(a):
                    value=a.value, icon=a.icon, color=a.color, ttl=a.ttl, duration=a.duration)["id"])
 
 
+def do_score(a):
+    """Maç skoru: kapalı adada [logo skor] dakika [skor logo]"""
+    home, away = a.home, a.away
+    print(activity(op="set", id=a.id or "match-%s-%s" % (home, away), title="%s – %s" % (home, away),
+                   subtitle=a.subtitle, left=str(a.home_score), right=str(a.away_score), center=a.minute,
+                   left_icon=a.home_logo, right_icon=a.away_logo, icon="sports", color=a.color,
+                   ttl=a.ttl)["id"])
+
+
 def do_end(a):
     state = "failed" if a.failed else "cancelled" if a.cancel else "done"
     if not activity(op="end", id=a.id, state=state, message=a.message).get("ok"):
@@ -257,6 +266,20 @@ def main(argv=None):
     style(p)
     p.add_argument("command", nargs=argparse.REMAINDER)
     p.set_defaults(fn=do_run)
+
+    p = sub.add_parser("score", help="maç skoru (kapalı adada skor tabelası)")
+    p.add_argument("home")
+    p.add_argument("away")
+    p.add_argument("home_score", type=int, nargs="?", default=0)
+    p.add_argument("away_score", type=int, nargs="?", default=0)
+    p.add_argument("-m", "--minute", help="""örn. "67'" """)
+    p.add_argument("--home-logo")
+    p.add_argument("--away-logo")
+    p.add_argument("-s", "--subtitle")
+    p.add_argument("--id")
+    p.add_argument("--ttl", type=int, default=7200)
+    p.add_argument("-c", "--color", help="#rrggbb")
+    p.set_defaults(fn=do_score)
 
     p = sub.add_parser("timer", help="geri sayım")
     p.add_argument("duration")

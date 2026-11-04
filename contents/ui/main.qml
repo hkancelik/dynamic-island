@@ -366,7 +366,8 @@ Window {
         for (var i = 0; i < parts.length; i++) w += parts[i] + (i ? 6 : 0)
         return Math.max(24, w)
     }
-    readonly property int idleW: 32 + 2 * slotW + 20 + 46
+    readonly property bool scoreOn: rec.state === "idle" && isScore(act)
+    readonly property int idleW: scoreOn ? 300 : 32 + 2 * slotW + 20 + 46
 
     // ---- Bölünmüş ada: ana adada sığmayan ikinci şey, ince bir boyunla ayrılan küçük daire olur
     readonly property int satW: 34
@@ -666,7 +667,14 @@ Window {
         if (a.end > 0) return Math.max(0, Math.min(1, (a.end - secTick) / Math.max(1, a.end - a.start)))
         return a.progress
     }
+    // Maç skoru: iki yan da doluysa kapalı ada skor tabelası olur
+    function isScore(a) { return !!a && a.left !== undefined && a.left !== "" && a.right !== undefined && a.right !== "" }
+    function logoSrc(n) {
+        if (!n) return ""
+        return n.charAt(0) === "/" ? "file://" + n : n.indexOf("file://") === 0 ? n : actIcon(n)
+    }
     function actValue(a) {
+        if (isScore(a)) return a.left + " – " + a.right
         if (a.value) return a.value
         if (a.end > 0) return mmss(Math.max(0, a.end - secTick))
         if (a.progress >= 0) return Math.round(a.progress * 100) + "%"
@@ -1436,8 +1444,32 @@ Window {
                         NumberAnimation { to: 1; duration: 650 }
                     }
                 }
+                Row {         // maç: sol takım [logo skor]
+                    visible: root.scoreOn
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 8
+                    Image {
+                        visible: status === Image.Ready
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 22; height: 22
+                        sourceSize: Qt.size(44, 44)
+                        fillMode: Image.PreserveAspectFit
+                        smooth: true
+                        source: root.scoreOn ? root.logoSrc(root.act.left_icon) : ""
+                    }
+                    Text {
+                        renderType: Text.CurveRendering
+                        font.family: "Inter"
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.scoreOn ? root.act.left : ""
+                        color: "white"
+                        font.pixelSize: 17
+                        font.weight: Font.DemiBold
+                        font.features: { "tnum": 1 }
+                    }
+                }
                 ActRing {     // Canlı Etkinlik
-                    visible: root.leftSlot === "act"
+                    visible: root.leftSlot === "act" && !root.scoreOn
                     anchors.verticalCenter: parent.verticalCenter
                     width: 18; height: 18
                     frac: root.actFrac(root.act)
@@ -1481,8 +1513,8 @@ Window {
                 renderType: Text.CurveRendering
                 font.family: "Inter"
                 anchors.centerIn: parent
-                text: root.clock
-                color: "white"
+                text: root.scoreOn ? (root.act.center || "") : root.clock
+                color: root.scoreOn ? root.actColor(root.act) : "white"
                 font.pixelSize: 15
                 font.weight: Font.DemiBold
                 font.letterSpacing: -0.1
@@ -1496,8 +1528,28 @@ Window {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 6
                 layoutDirection: Qt.RightToLeft
+                Image {       // maç: sağ takım [skor logo]
+                    visible: root.scoreOn && status === Image.Ready
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 22; height: 22
+                    sourceSize: Qt.size(44, 44)
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    source: root.scoreOn ? root.logoSrc(root.act.right_icon) : ""
+                }
+                Text {
+                    visible: root.scoreOn
+                    renderType: Text.CurveRendering
+                    font.family: "Inter"
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.scoreOn ? root.act.right : ""
+                    color: "white"
+                    font.pixelSize: 17
+                    font.weight: Font.DemiBold
+                    font.features: { "tnum": 1 }
+                }
                 Bars {
-                    visible: root.rightBars
+                    visible: root.rightBars && !root.scoreOn
                     playing: root.playing
                     levels: root.spectrum
                     live: idleView.on
@@ -1506,7 +1558,7 @@ Window {
                 Text {
                     renderType: Text.CurveRendering
                     font.family: "Inter"
-                    visible: root.rightText !== ""
+                    visible: root.rightText !== "" && !root.scoreOn
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.rightText
                     color: root.rec.state !== "idle" ? "#ff6961" : root.act !== null ? root.actColor(root.act) : root.focusColor
