@@ -17,7 +17,7 @@ Alanlar (hepsi isteğe bağlı, id dışında):
   color             "#rrggbb" vurgu rengi
   left, right       skor tabelası (maç): iki yanın kısa metni ("1", "0"); ikisi de varsa kapalı ada
                     [sol_ikon sol] orta [sağ sağ_ikon] biçiminde çizilir
-  left_icon,        takım logosu: hazır/freedesktop ikon adı, mutlak dosya yolu ya da file:// adresi
+  left_icon,        takım logosu: hazır/freedesktop ikon adı, mutlak dosya yolu, file:// ya da https:// adresi
   right_icon
   center            iki skorun ortasında kısa metin ("67'", "İY"); boşsa saat görünür
   end               bitiş anı (ms, epoch): geri sayım; süre dolunca etkinlik kendiliğinden biter
@@ -60,9 +60,9 @@ def _text(v, n):
 
 
 def _logo(v):
-    """İkon adı, mutlak yol ya da file:// adresi; diğer her şey (http dahil) boş sayılır."""
+    """İkon adı, mutlak yol, file:// ya da https:// adresi; diğer her şey boş sayılır."""
     v = _text(v, 256)
-    if v.startswith("file://") or v.startswith("/"):
+    if v.startswith(("file://", "https://", "/")):
         return v
     return v if re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", v) else ""
 

@@ -188,6 +188,12 @@ class ActivityTest(unittest.TestCase):
         self.assertIn("62'", msg["subtitle"])
         self.assertAlmostEqual(msg["progress"], 62 / 90)
 
+    def test_live_card_has_scoreboard_fields(self):
+        ((_, msg),) = football.activity_ops("tick", {"match": self.match()}, "#d11317")
+        self.assertEqual((msg["left"], msg["right"], msg["center"]), ("1", "2", "62'"))
+        self.assertIn("left_icon", msg)
+        self.assertIn("right_icon", msg)
+
     def test_stoppage_time_does_not_exceed_full_progress(self):
         ((_, msg),) = football.activity_ops("tick", {"match": self.match("90'+4'")}, "#d11317")
         self.assertEqual(msg["progress"], 1.0)

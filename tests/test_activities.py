@@ -145,4 +145,6 @@ class ScoreboardTest(unittest.TestCase):
         it = pub[-1]["items"][0]
         self.assertEqual((it["left"], it["right"], it["center"]), ("1", "0", "67'"))
         self.assertEqual(it["left_icon"], "/tmp/a.png")
-        self.assertEqual(it["right_icon"], "")      # uzak adres kabul edilmez
+        self.assertEqual(it["right_icon"], "")      # düz http kabul edilmez
+        live.set({"id": "m", "right_icon": "https://a.espncdn.com/x.png"})
+        self.assertEqual(pub[-1]["items"][0]["right_icon"], "https://a.espncdn.com/x.png")

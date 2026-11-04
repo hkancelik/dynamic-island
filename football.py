@@ -269,9 +269,14 @@ def activity_ops(kind, d, color):
         digits = "".join(ch for ch in mins.split("'")[0].split("+")[0] if ch.isdigit())
         minute = int(digits or 0)
         sc = versus.split(" ")[1] if " " in versus else ""
+        h, a = m.get("home", {}), m.get("away", {})
         return [("set", {"op": "set", "id": "football", "title": versus, "icon": "football",
                          "subtitle": " · ".join(x for x in (m.get("leagueName", ""), mins or m.get("detail", "")) if x),
-                         "value": sc, "progress": min(1.0, minute / 90.0), "color": color, "ttl": 90})]
+                         "value": sc, "progress": min(1.0, minute / 90.0), "color": color, "ttl": 90,
+                         # kapalı adada skor tabelası: [logo ev] dakika [deplasman logo]
+                         "left": str(h.get("score") if h.get("score") is not None else 0),
+                         "right": str(a.get("score") if a.get("score") is not None else 0),
+                         "center": mins, "left_icon": h.get("logo", ""), "right_icon": a.get("logo", "")})]
     if kind == "goal":
         scorers = [g for g in d.get("goals", []) if g.get("text")]
         last = scorers[-1] if scorers else {}
